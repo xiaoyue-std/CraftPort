@@ -1,0 +1,22 @@
+# 构建产物
+target/
+
+# 测试编译产物
+test/*.class
+
+# 运行/调试残留
+*.log
+logs/
+ui-screenshot*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# 系统文件
+Thumbs.db
+.DS_Store
