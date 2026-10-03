@@ -64,6 +64,9 @@
       </select>
       <label style="margin-top:10px"><input type="checkbox" id="eula"> <span data-i18n="eula"></span> <a href="https://aka.ms/MinecraftEULA" target="_blank" style="color:var(--acc)">EULA</a></label>
       <div class="row"><button id="deployBtn" onclick="deploy()" data-i18n="deploy"></button></div>
+      <label data-i18n="modpackFrom" style="margin-top:14px"></label>
+      <input type="text" id="packQuery" placeholder="Fabulously Optimized">
+      <div class="row"><button class="ghost" onclick="deployModpack()" data-i18n="deployPackBtn"></button></div>
       <div class="progress" id="depProg"><div id="depBar"></div></div>
       <div class="muted" id="depMsg"></div>
     </div>
@@ -119,6 +122,8 @@ const I18N = {
     ALREADY_RUNNING: "Already running in this panel.",
     NOT_MANAGED: "Not running in this panel.",
     DEPLOY_IN_PROGRESS: "A deployment is already in progress.",
+    modpackFrom: "…or deploy from a CurseForge modpack (type & EULA above apply)",
+    deployPackBtn: "Deploy modpack server",
     langBtn: "中文"
   },
   zh: {
@@ -152,6 +157,8 @@ const I18N = {
     ALREADY_RUNNING: "该服务器已在本面板中运行。",
     NOT_MANAGED: "该服务器未由本面板启动。",
     DEPLOY_IN_PROGRESS: "已有部署任务进行中。",
+    modpackFrom: "…或从 CurseForge 整合包一键部署（使用上方版本与 EULA）",
+    deployPackBtn: "整合包一键部署服务器",
     langBtn: "English"
   }
 };
@@ -286,6 +293,31 @@ async function sendCmd() {
 }
 
 // ==================== 部署 ====================
+async function deployModpack() {
+  const btn = event.target;
+  btn.disabled = true;
+  const query = document.getElementById('packQuery').value.trim();
+  const mc = document.getElementById('mc').value.trim();
+  const eula = document.getElementById('eula').checked;
+  const msg = document.getElementById('depMsg'), prog = document.getElementById('depProg'), bar = document.getElementById('depBar');
+  if (!query) { msg.textContent = t('noServers'); btn.disabled = false; return; }
+  prog.style.display = 'block'; msg.textContent = t('deployStarting');
+  const res = await api('/api/deploy-modpack', {query, mc, eula});
+  if (res.error) { msg.textContent = errMsg(res); btn.disabled = false; return; }
+  const timer = setInterval(async () => {
+    const st = await api('/api/deploy/status');
+    bar.style.width = Math.round((st.percent || 0) * 100) + '%';
+    msg.textContent = (t('phase_' + st.phase) || st.phase) + (st.phase === 'installing' && st.percent > 0 ? ' ' + Math.round(st.percent * 100) + '%' : '');
+    if (st.done) {
+      clearInterval(timer); btn.disabled = false;
+      msg.dataset.key = st.error ? 'deployFailed' : 'deployDone';
+      msg.dataset.arg = st.error || st.resultDir || '';
+      msg.textContent = t(msg.dataset.key, msg.dataset.arg);
+      loadServers();
+    }
+  }, 800);
+}
+
 async function deploy() {
   const btn = document.getElementById('deployBtn');
   btn.disabled = true;

@@ -6,6 +6,9 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import pcl.base.Log;
 import pcl.base.Os;
+import pcl.minecraft.CurseForge;
+import pcl.minecraft.McFolder;
+import pcl.minecraft.ModpackInstaller;
 import pcl.minecraft.ServerDeployer;
 import pcl.minecraft.ServerManager;
 
@@ -61,6 +64,7 @@ public final class WebPanel {
                 case "/api/servers" -> apiServers(ex);
                 case "/api/deploy" -> apiDeploy(ex);
                 case "/api/deploy/status" -> apiDeployStatus(ex);
+                case "/api/deploy-modpack" -> apiDeployModpack(ex);
                 case "/api/start" -> apiStart(ex);
                 case "/api/stop" -> apiStop(ex);
                 case "/api/kill" -> apiKill(ex);
@@ -143,6 +147,56 @@ public final class WebPanel {
         t.setDaemon(true);
         t.start();
         sendJson(ex, 200, Map.of("ok", true, "dir", dir.toString()));
+    }
+
+    /**
+     * CurseForge 整合包一键服务端部署：{query, mc?, pick?, eula}。
+     * 从整合包 manifest 自动推断 MC 版本与加载器，部署 + 装入全部内容。
+     */
+    private static void apiDeployModpack(HttpExchange ex) throws IOException {
+        JsonObject body = GSON.fromJson(body(ex), JsonObject.class);
+        String query = body.get("query").getAsString();
+        String mc = body.has("mc") && !body.get("mc").isJsonNull() ? body.get("mc").getAsString() : null;
+        int pick = body.has("pick") ? body.get("pick").getAsInt() : 0;
+        boolean eula = body.has("eula") && body.get("eula").getAsBoolean();
+
+        synchronized (WebPanel.class) {
+            if (deployState != null && !deployState.done) {
+                sendJson(ex, 409, Map.of("error", "A deployment is already in progress",
+                        "code", "DEPLOY_IN_PROGRESS"));
+                return;
+            }
+            deployState = new DeployState();
+        }
+        Thread t = new Thread(() -> {
+            DeployState s = deployState;
+            try {
+                s.phase = "searching";
+                List<CurseForge.ModInfo> packs = CurseForge.searchModpacks(query);
+                if (packs.isEmpty()) throw new IOException("No modpacks found for: " + query);
+                CurseForge.ModInfo pack = packs.get(Math.min(pick, packs.size() - 1));
+                s.phase = "fetching-files";
+                List<CurseForge.FileInfo> files = CurseForge.files(pack.id(), mc);
+                if (files.isEmpty()) throw new IOException("No compatible modpack files" +
+                        (mc == null ? "" : " for " + mc));
+                CurseForge.FileInfo packFile = files.get(0);
+                s.phase = "installing";
+                ModpackInstaller.InstallResult result = ModpackInstaller.deployServer(pack, packFile,
+                        McFolder.selectedRoot(), null, eula,
+                        (done, total) -> s.percent = total == 0 ? 0 : (double) done / total);
+                s.percent = 1;
+                s.phase = "done";
+                s.resultDir = result.targetDir().toString();
+            } catch (Exception e) {
+                s.phase = "failed";
+                s.error = String.valueOf(e.getMessage());
+            } finally {
+                s.done = true;
+            }
+        }, "pclj-web-mpdeploy");
+        t.setDaemon(true);
+        t.start();
+        sendJson(ex, 200, Map.of("ok", true));
     }
 
     private static void apiDeployStatus(HttpExchange ex) throws IOException {

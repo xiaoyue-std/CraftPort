@@ -135,7 +135,9 @@ public final class Net {
 
     private static HttpRequest.Builder request(String url) {
         return HttpRequest.newBuilder(URI.create(url))
-                .header("User-Agent", "PCLJ/1.0 (Java " + System.getProperty("java.version") + "; " + Os.OS_NAME + ")");
+                .header("User-Agent", "PCLJ/1.0 (Java " + System.getProperty("java.version") + "; " + Os.OS_NAME + ")")
+                // 所有请求统一 60s 响应头超时，防镜像挂起连接（正文流另有重试与兜底）
+                .timeout(Duration.ofSeconds(60));
     }
 
     /** 快速 POST，不带重试（下载器分片用）。 */

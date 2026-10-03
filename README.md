@@ -64,6 +64,10 @@ mods install <query> --dir <目标目录>          # 任意位置（如服务器
 modpack install "Fabulously Optimized" --mc 1.20.6 --pick 0
 modpack search <query> --mc 1.20.6            # 先搜索再选 --pick N
 
+# 整合包一键服务端部署：自动推断版本与加载器 → 部署服务器 → 装入全部内容
+# → 生成配套客户端包（--start 可选立即启动）
+modpack deploy "Fabulously Optimized" --mc 1.20.6 --accept-eula
+
 # 启动（离线登录）
 login Steve
 launch 1.20.6 --username Steve --server play.example.com --no-wait
@@ -117,6 +121,8 @@ server web            # 默认 http://127.0.0.1:8765/ （Ctrl+C 结束面板）
 发送 `stop`）、实时日志滚动、控制台命令输入。仅监听 127.0.0.1；面板只接管
 由它启动的实例，CLI 手动启动的服务器会标记为 "running elsewhere"。
 **中英文切换**：右上角按钮一键切换，选择保存在浏览器 localStorage。
+部署表单还支持 **CurseForge 整合包一键部署**：输入整合包名，自动按 manifest
+推断版本与加载器部署服务器并装入全部内容。
 
 ---
 

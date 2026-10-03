@@ -331,8 +331,8 @@ public final class CliMain {
 
     private static int cmdModpack(String[] args) throws Exception {
         if (args.length < 2) throw new IllegalArgumentException(
-                "Usage: modpack search|install <query> [--mc v] [--pick N] [--file N] "
-                        + "[--server --dir serverDir]");
+                "Usage: modpack search|install|deploy <query> [--mc v] [--pick N] [--file N] "
+                        + "[--server --dir serverDir]  |  deploy: [--accept-eula] [--dir d] [--start]");
         String action = args[0];
         String query = args[1];
         Map<String, String> flags = parseFlags(args, 2);
@@ -359,22 +359,44 @@ public final class CliMain {
         if (fileIdx >= Math.min(10, files.size())) throw new IllegalArgumentException("File index out of range: " + fileIdx);
         CurseForge.FileInfo packFile = files.get(fileIdx);
 
-        Path serverDir = server ? Path.of(flags.getOrDefault("dir", "")) : null;
-        if (server && (serverDir == null || serverDir.toString().isBlank())) {
-            throw new IllegalArgumentException("Server mode needs --dir <server directory>");
-        }
-        System.out.println("Installing modpack \"" + pack.name() + "\" (" + packFile.displayName() + ") "
-                + (server ? "into server " + serverDir : "as a client version") + " ...");
         long t0 = System.currentTimeMillis();
-        ModpackInstaller.InstallResult result = ModpackInstaller.install(pack, packFile,
-                McFolder.selectedRoot(), server, serverDir,
-                (done, total) -> {
-                    if (done % 5 == 0 || done == total) progress(total == 0 ? 0 : (double) done / total);
-                });
-        System.out.println();
-        System.out.println(green("Modpack installed: " + result.packName()
-                + " (" + result.mc() + ", " + result.loader() + ", " + result.modsInstalled() + " mods)"));
-        System.out.println("Mods directory: " + result.modsDir());
+        ModpackInstaller.InstallResult result;
+        if ("deploy".equals(action)) {
+            // 一键服务端部署：从整合包自动推断版本与加载器，部署 + 装入全部内容
+            boolean acceptEula = flags.containsKey("accept-eula");
+            if (!acceptEula) {
+                System.out.println(yellow("WARNING: EULA not accepted - add --accept-eula or the server will refuse to start."));
+            }
+            Path serverDir = flags.containsKey("dir") ? Path.of(flags.get("dir")) : null;
+            result = ModpackInstaller.deployServer(pack, packFile, McFolder.selectedRoot(),
+                    serverDir, acceptEula, (done, total) -> {
+                        if (done % 5 == 0 || done == total) progress(total == 0 ? 0 : (double) done / total);
+                    });
+            System.out.println(green("Server deployed at: " + result.targetDir()));
+            System.out.println("Start it with: server start --dir \"" + result.targetDir() + "\"");
+            if (flags.containsKey("start")) {
+                System.out.println("Starting server now (interactive console, 'stop' to exit)...");
+                String javaExe = ServerDeployer.resolveJava(result.mc(), true).executable().toString();
+                Process p = ServerDeployer.start(result.targetDir(), javaExe, 4096);
+                int code = p.waitFor();
+                System.out.println("Server exited with code " + code + ".");
+            }
+        } else {
+            Path serverDir = server ? Path.of(flags.getOrDefault("dir", "")) : null;
+            if (server && (serverDir == null || serverDir.toString().isBlank())) {
+                throw new IllegalArgumentException("Server mode needs --dir <server directory>");
+            }
+            System.out.println("Installing modpack \"" + pack.name() + "\" (" + packFile.displayName() + ") "
+                    + (server ? "into server " + serverDir : "as a client version") + " ...");
+            result = ModpackInstaller.install(pack, packFile,
+                    McFolder.selectedRoot(), server, serverDir,
+                    (done, total) -> {
+                        if (done % 5 == 0 || done == total) progress(total == 0 ? 0 : (double) done / total);
+                    });
+            System.out.println(green("Modpack installed: " + result.packName()
+                    + " (" + result.mc() + ", " + result.loader() + ", " + result.modsInstalled() + " mods)"));
+            System.out.println("Mods directory: " + result.targetDir());
+        }
         if (result.clientPack() != null) {
             System.out.println(green("Client pack (give this to players): " + result.clientPack()));
         }
