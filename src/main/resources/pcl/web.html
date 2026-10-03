@@ -54,7 +54,11 @@
     <div class="card" style="margin-bottom:16px">
       <h2 data-i18n="deployTitle"></h2>
       <label data-i18n="mcVersion"></label>
-      <input type="text" id="mc" placeholder="1.20.6" value="1.20.6">
+      <div class="row" style="margin:0">
+        <select id="mc" style="flex:1"></select>
+        <button class="ghost" onclick="loadVersions()" data-i18n="refresh"></button>
+      </div>
+      <div class="muted" data-i18n="versionsHint"></div>
       <label data-i18n="type"></label>
       <select id="type">
         <option value="vanilla" data-i18n="type_vanilla"></option>
@@ -96,6 +100,10 @@ const I18N = {
     subtitle: "deployed via CLI `server web` — bound to localhost",
     deployTitle: "Deploy new server",
     mcVersion: "Minecraft version",
+    refresh: "Refresh",
+    versionsHint: "Latest 100 releases (auto-fetched)",
+    versionsLoading: "Loading versions…",
+    versionsFail: "Failed to load versions - click Refresh to retry.",
     type: "Type",
     type_vanilla: "vanilla (Mojang)",
     type_fabric: "fabric (official meta)",
@@ -131,6 +139,10 @@ const I18N = {
     subtitle: "由 CLI 命令 `server web` 启动 · 仅监听本机",
     deployTitle: "部署新服务器",
     mcVersion: "Minecraft 版本",
+    refresh: "刷新",
+    versionsHint: "最新 100 个正式版（自动拉取）",
+    versionsLoading: "正在拉取版本列表…",
+    versionsFail: "版本列表拉取失败 - 点击刷新重试。",
     type: "类型",
     type_vanilla: "原版（Mojang 官方）",
     type_fabric: "Fabric（官方 meta）",
@@ -198,6 +210,24 @@ async function api(path, body) {
 function errMsg(data) {
   if (data.code && I18N[lang] && I18N[lang][data.code]) return t(data.code, data.port != null ? data.port : "");
   return data.error || "unknown error";
+}
+
+// ==================== 版本下拉 ====================
+async function loadVersions() {
+  const sel = document.getElementById('mc');
+  sel.innerHTML = '<option>' + t('versionsLoading') + '</option>';
+  try {
+    const data = await api('/api/versions');
+    sel.innerHTML = '';
+    for (const v of data.versions) {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.id + '   ' + v.date;
+      sel.appendChild(opt);
+    }
+  } catch (e) {
+    sel.innerHTML = '<option>' + t('versionsFail') + '</option>';
+  }
 }
 
 // ==================== 服务器列表 ====================
@@ -345,6 +375,7 @@ async function deploy() {
 // ==================== 启动 ====================
 applyLang();
 loadServers();
+loadVersions();
 setInterval(loadServers, 3000);
 </script>
 </body>

@@ -62,6 +62,7 @@ public final class WebPanel {
             switch (path) {
                 case "/", "/index.html" -> servePage(ex);
                 case "/api/servers" -> apiServers(ex);
+                case "/api/versions" -> apiVersions(ex);
                 case "/api/deploy" -> apiDeploy(ex);
                 case "/api/deploy/status" -> apiDeployStatus(ex);
                 case "/api/deploy-modpack" -> apiDeployModpack(ex);
@@ -110,6 +111,18 @@ public final class WebPanel {
             servers.add(m);
         }
         sendJson(ex, 200, Map.of("servers", servers));
+    }
+
+    /** 可部署的正式版列表（最新 100 个，供面板下拉选择）。 */
+    private static void apiVersions(HttpExchange ex) throws IOException {
+        List<Map<String, Object>> versions = new ArrayList<>();
+        for (pcl.minecraft.InstallService.Release r : pcl.minecraft.InstallService.fetchManifest()) {
+            if (!r.isRelease()) continue;
+            versions.add(Map.of("id", r.id(), "date",
+                    r.releaseTime().length() >= 10 ? r.releaseTime().substring(0, 10) : ""));
+            if (versions.size() >= 100) break;
+        }
+        sendJson(ex, 200, Map.of("versions", versions));
     }
 
     private static void apiDeploy(HttpExchange ex) throws IOException {
