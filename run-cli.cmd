@@ -1,5 +1,5 @@
 @echo off
-rem PCL Java Edition - CLI launcher (Windows)
+rem CraftPort - CLI launcher (Windows)
 setlocal
 set JAR=
 for /f "delims=" %%f in ('dir /b "%~dp0target\*-cli.jar" 2^>nul') do set JAR=%~dp0target\%%f

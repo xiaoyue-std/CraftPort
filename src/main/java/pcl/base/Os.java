@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * 平台适配层，移植自 ModBase.vb 的路径常量与平台判断（IsWinVistaOrHigher / PathTemp / PathPure 等）。
  * 这是 Linux 适配的核心：
- *  - 数据目录：Windows 用 %APPDATA%\PCLJ，Linux/macOS 用 ~/.local/share/PCLJ（遵循 XDG）
+ *  - 数据目录：Windows 用 %APPDATA%\CraftPort，Linux/macOS 用 ~/.local/share/CraftPort（遵循 XDG）
  *  - 临时目录：Windows 用 %TEMP%\PCL，Linux 用 /tmp/PCL 或 $XDG_RUNTIME_DIR
  *  - 类路径分隔符、可执行文件名、native 后缀全部按平台区分
  */
@@ -54,12 +54,12 @@ public final class Os {
     public static Path dataDir() {
         if (IS_WINDOWS) {
             String appdata = env("APPDATA", System.getProperty("user.home"));
-            return Path.of(appdata, "PCLJ");
+            return Path.of(appdata, "CraftPort");
         }
         // Linux/macOS 遵循 XDG Base Directory 规范
         String xdg = env("XDG_DATA_HOME", "");
-        if (!xdg.isBlank()) return Path.of(xdg, "PCLJ");
-        return Path.of(System.getProperty("user.home"), ".local", "share", "PCLJ");
+        if (!xdg.isBlank()) return Path.of(xdg, "CraftPort");
+        return Path.of(System.getProperty("user.home"), ".local", "share", "CraftPort");
     }
 
     /** 临时目录，对应 PCL 的 PathTemp = %TEMP%\PCL\。 */

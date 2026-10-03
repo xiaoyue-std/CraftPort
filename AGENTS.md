@@ -1,4 +1,4 @@
-# AGENTS.md — PCLJ 项目指南
+# AGENTS.md — CraftPort 项目指南
 
 面向在此仓库工作的 AI 会话 / 新成员。**先读这份再动手。**
 
@@ -31,15 +31,15 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
 ```bash
 export JAVA_HOME="D:/Environment/JDK/jdk-21.0.10+7"
 MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未装全局
-"$MVN" -q package -DskipTests        # 产物: target/PCLJ.jar + pcl-java-1.0.0-cli.jar
+"$MVN" -q package -DskipTests        # 产物: target/CraftPort.jar + pcl-java-1.0.0-cli.jar
 ```
 
 ## 验证手段（改完必须验）
 
 - **编译**：上面的 mvn 命令；产物两个 jar
-- **UI 快照**（免桌面）：`java -Dpclj.snapshot=target/shots -jar target/PCLJ.jar`
+- **UI 快照**（免桌面）：`java -Dpclj.snapshot=target/shots -jar target/CraftPort.jar`
   自动截四个页面 PNG（MainApp.runSnapshots，页面间停顿已调好）
-- **CLI 冒烟**：`java -jar target/PCLJ-cli.jar help` / `versions` / `status`
+- **CLI 冒烟**：`java -jar target/CraftPort-cli.jar help` / `versions` / `status`
 - **Web 面板 API**：`python test/webpanel_test.py`（需先 `server web` + 部署一个 fabric 服务端）
 - **端到端启动**：`test/LaunchTest.java`、`test/LoaderTest.java`（javac 编到 test/ 后跑，
   会真实下载约 600MB，慎用；历史上已验证过，非启动链路改动不必重跑）

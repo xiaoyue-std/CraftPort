@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# PCL Java Edition 运行脚本（Linux / macOS）
+# CraftPort 运行脚本（Linux / macOS）
 # 优先使用 Java 21 运行启动器；找不到时退而求其次（JavaFX 最低要求 Java 17）。
 # 用法: ./run.sh [jar路径]
 set -e
 
-JAR="${1:-$(dirname "$0")/target/PCLJ.jar}"
+JAR="${1:-$(dirname "$0")/target/CraftPort.jar}"
 
 if [ ! -f "$JAR" ]; then
     echo "未找到 $JAR，请先执行: mvn package"

@@ -1,9 +1,9 @@
 @echo off
-rem PCL Java Edition 运行脚本（Windows）
+rem CraftPort 运行脚本（Windows）
 rem 用法: run.cmd [jar路径]
 setlocal
 
-set JAR=%~dp0target\PCLJ.jar
+for /f "delims=" %%f in ('dir /b "%~dp0target\CraftPort.jar" 2^>nul') do set JAR=%~dp0target\%%f
 if not "%~1"=="" set JAR=%~1
 
 if not exist "%JAR%" (

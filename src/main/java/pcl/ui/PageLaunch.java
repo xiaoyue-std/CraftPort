@@ -141,7 +141,7 @@ public class PageLaunch {
     private void drawAvatar(String uuid) {
         GraphicsContext g = avatar.getGraphicsContext2D();
         g.clearRect(0, 0, 44, 44);
-        String seed = (uuid == null || uuid.isBlank()) ? "PCLJ" : uuid.replace("-", "");
+        String seed = (uuid == null || uuid.isBlank()) ? "CraftPort" : uuid.replace("-", "");
         // 颜色由 UUID 前几位决定
         int hue = Integer.parseUnsignedInt(seed.substring(0, Math.min(4, seed.length())), 16) % 360;
         Color main = Color.hsb(hue, 0.55, 0.75);

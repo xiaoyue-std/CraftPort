@@ -25,9 +25,9 @@ import java.util.Map;
 import java.util.Scanner;
 
 /**
- * Plain Craft Launcher Java Edition — command line interface (English only).
+ * CraftPort — command line interface (English only).
  *
- * Usage: java -jar PCLJ-cli.jar [command] [args]
+ * Usage: java -jar CraftPort-cli.jar [command] [args]
  * Run without arguments for the interactive menu.
  *
  * Reuses the exact core pipeline of the GUI edition (installation, loaders,
@@ -101,10 +101,10 @@ public final class CliMain {
 
     private static void printHelp() {
         System.out.println("""
-                Plain Craft Launcher Java Edition (CLI)
+                CraftPort (CLI)
 
-                Usage: java -jar PCLJ-cli.jar <command> [args]
-                       java -jar PCLJ.jar cli <command> [args]
+                Usage: java -jar CraftPort-cli.jar <command> [args]
+                       java -jar CraftPort.jar cli <command> [args]
 
                 Commands:
                   versions                      List installed versions in the game directory
@@ -600,7 +600,7 @@ public final class CliMain {
         System.out.println("  Debian/Ubuntu : sudo apt install openjdk-21-jre-headless");
         System.out.println("  Fedora/RHEL   : sudo dnf install java-21-openjdk-headless");
         System.out.println("  Arch          : sudo pacman -S jdk21-openjdk");
-        System.out.println("  Or let PCLJ download Mojang's runtime: drop --no-auto-java");
+        System.out.println("  Or let CraftPort download Mojang's runtime: drop --no-auto-java");
     }
 
     /**
@@ -645,7 +645,7 @@ public final class CliMain {
     // ==================== Interactive menu ====================
 
     private static int interactive() {
-        System.out.println("Plain Craft Launcher Java Edition — CLI (type a number)");
+        System.out.println("CraftPort — CLI (type a number)");
         while (true) {
             System.out.println("""
 

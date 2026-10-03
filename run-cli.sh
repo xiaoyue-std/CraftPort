@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PCL Java Edition — CLI launcher (Linux / macOS), prefers Java 21
+# CraftPort — CLI launcher (Linux / macOS), prefers Java 21
 DIR="$(cd "$(dirname "$0")" && pwd)"
 JAR=$(ls "$DIR"/target/*-cli.jar 2>/dev/null | head -1)
 [ -n "$JAR" ] && [ -f "$JAR" ] || { echo "Not found: $JAR — run 'mvn package' first."; exit 1; }

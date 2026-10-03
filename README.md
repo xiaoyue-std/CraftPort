@@ -1,4 +1,4 @@
-# PCLJ — Plain Craft Launcher Java Edition
+# CraftPort — CraftPort
 
 [Plain Craft Launcher 2](https://github.com/Hex-Dragon/PCL2)（VB.NET / WPF）的 Java 重构版。
 一套核心、两个面孔：**PCL2 风格的图形界面** + **面向 Linux 服务器的纯英文命令行**，
@@ -22,12 +22,12 @@ mvn package
 
 | 产物 | 用途 |
 |---|---|
-| `PCLJ.jar`（约 11MB） | 图形界面；内含全平台 JavaFX |
-| `PCLJ-cli.jar`（约 0.7MB） | 纯英文命令行，无 JavaFX，无头环境可跑 |
+| `CraftPort.jar`（约 11MB） | 图形界面；内含全平台 JavaFX |
+| `CraftPort-cli.jar`（约 0.7MB） | 纯英文命令行，无 JavaFX，无头环境可跑 |
 
 ```bash
-java -jar target/PCLJ.jar          # GUI（Windows / Linux / macOS）
-java -jar target/PCLJ-cli.jar      # CLI（或 ./run-cli.sh、run-cli.cmd、java -jar target/PCLJ.jar cli ...）
+java -jar target/CraftPort.jar          # GUI（Windows / Linux / macOS）
+java -jar target/CraftPort-cli.jar      # CLI（或 ./run-cli.sh、run-cli.cmd、java -jar target/CraftPort.jar cli ...）
 ```
 
 ---
@@ -150,7 +150,7 @@ apt / dnf / pacman 安装命令；CLI 输出带 ANSI 颜色（遵循 `NO_COLOR`�
 
 | 内容 | Windows | Linux / macOS |
 |---|---|---|
-| 配置 `config.json`、日志 | `%APPDATA%\PCLJ` | `~/.local/share/PCLJ`（XDG） |
+| 配置 `config.json`、日志 | `%APPDATA%\CraftPort` | `~/.local/share/CraftPort`（XDG） |
 | 游戏目录（默认） | `%APPDATA%\.minecraft` | `~/.minecraft` |
 | 服务端 / 客户端包 | `<游戏目录>\servers\` `clientpacks\` | `<游戏目录>/servers/` `clientpacks/` |
 | 自动下载的 Java 运行时 | `<游戏目录>\runtime\` | `<游戏目录>/runtime/` |

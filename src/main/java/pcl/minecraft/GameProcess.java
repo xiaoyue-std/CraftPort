@@ -34,7 +34,7 @@ public final class GameProcess {
                     appendLog(line);
                 }
             } catch (Exception ignored) {}
-        }, "PCLJ-GameLog");
+        }, "CraftPort-GameLog");
         logThread.setDaemon(true);
         logThread.start();
 
@@ -46,7 +46,7 @@ public final class GameProcess {
                     appendLog("[STDERR] " + line);
                 }
             } catch (Exception ignored) {}
-        }, "PCLJ-GameErr");
+        }, "CraftPort-GameErr");
         errThread.setDaemon(true);
         errThread.start();
 
@@ -57,7 +57,7 @@ public final class GameProcess {
                 appendLog("游戏已退出，退出码 " + lastExitCode);
                 Log.info("游戏进程结束，退出码 " + lastExitCode);
             } catch (InterruptedException ignored) {}
-        }, "PCLJ-GameExit");
+        }, "CraftPort-GameExit");
         exitThread.setDaemon(true);
         exitThread.start();
     }

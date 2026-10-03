@@ -67,7 +67,7 @@ public final class McFolder {
                 o.addProperty("clientToken", "23323323323323323323323323323333");
                 JsonObject profilesObj = new JsonObject();
                 JsonObject pclProfile = new JsonObject();
-                pclProfile.addProperty("name", "PCLJ");
+                pclProfile.addProperty("name", "CraftPort");
                 pclProfile.addProperty("type", "custom");
                 profilesObj.add("pclj", pclProfile);
                 o.add("profiles", profilesObj);

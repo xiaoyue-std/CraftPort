@@ -212,7 +212,7 @@ public final class ServerDeployer {
         // eula.txt：仅在用户明确接受时写入 eula=true
         Path eula = dir.resolve("eula.txt");
         if (!Files.exists(eula)) {
-            String body = "# Accepted via PCLJ server deployment\n"
+            String body = "# Accepted via CraftPort server deployment\n"
                     + "eula=" + acceptEula + "\n";
             Files.writeString(eula, body, StandardCharsets.UTF_8);
             if (!acceptEula) {
@@ -226,7 +226,7 @@ public final class ServerDeployer {
         if (!Files.exists(props)) {
             Files.writeString(props, """
                     server-port=25565
-                    motd=A server deployed by PCLJ
+                    motd=A server deployed by CraftPort
                     max-players=20
                     online-mode=true
                     view-distance=10
@@ -296,7 +296,7 @@ public final class ServerDeployer {
     private static String systemdUnit(Path dir, List<String> cmd) {
         return """
                 [Unit]
-                Description=PCLJ Minecraft Server (%s)
+                Description=CraftPort Minecraft Server (%s)
                 After=network.target
 
                 [Service]

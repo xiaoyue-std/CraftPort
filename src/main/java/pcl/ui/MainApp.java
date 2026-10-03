@@ -43,7 +43,7 @@ public class MainApp extends Application {
     @Override
     public void start(Stage stage) {
         Log.initFile(Os.dataDir());
-        Log.info("PCL Java Edition 启动，平台: " + Os.OS_NAME + "/" + Os.OS_ARCH
+        Log.info("CraftPort 启动，平台: " + Os.OS_NAME + "/" + Os.OS_ARCH
                 + "，数据目录: " + Os.dataDir());
 
         // 无边框窗口：使用自定义标题栏（对应 PCL2 的自绘窗口边框）
@@ -57,8 +57,8 @@ public class MainApp extends Application {
         VBox navBox = new VBox(6);
         navBox.setPadding(new Insets(18, 12, 12, 12));
 
-        Text logo = new Text("PCL");
-        logo.setFont(Font.font(Font.getDefault().getFamily(), FontWeight.BOLD, 30));
+        Text logo = new Text("CraftPort");
+        logo.setFont(Font.font(Font.getDefault().getFamily(), FontWeight.BOLD, 22));
         logo.setFill(Color.WHITE);
         logo.setEffect(new DropShadow(8, Color.rgb(30, 60, 100, 0.5)));
         Text subtitle = new Text("Java Edition");
@@ -75,7 +75,7 @@ public class MainApp extends Application {
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
         String javaVer = System.getProperty("java.version");
-        Label info = new Label("PCLJ 1.0\nJava " + (javaVer.matches("\\d+.*") ? javaVer.split("\\.")[0] : javaVer));
+        Label info = new Label("CraftPort 1.0\nJava " + (javaVer.matches("\\d+.*") ? javaVer.split("\\.")[0] : javaVer));
         info.getStyleClass().add("sidebar-info");
 
         navBox.getChildren().addAll(logoBox, navLaunch, navDownload, navSetup, spacer, info);
@@ -122,7 +122,7 @@ public class MainApp extends Application {
 
         Scene scene = new Scene(root, 1020, 700);
         Theme.apply(scene);
-        stage.setTitle("Plain Craft Launcher Java Edition");
+        stage.setTitle("CraftPort");
         stage.setScene(scene);
         stage.setMinWidth(860);
         stage.setMinHeight(600);
@@ -196,7 +196,7 @@ public class MainApp extends Application {
 
     /** 自绘标题栏：标题 + 最小化/最大化/关闭，支持拖动移动与双击最大化。 */
     private HBox buildTitleBar(Stage stage) {
-        Label title = new Label("Plain Craft Launcher Java Edition");
+        Label title = new Label("CraftPort");
         title.getStyleClass().add("title-label");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

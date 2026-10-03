@@ -129,7 +129,7 @@ public final class Downloader {
 
     private static java.net.http.HttpRequest.Builder request(String url) {
         return java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
-                .header("User-Agent", "PCLJ/1.0")
+                .header("User-Agent", "CraftPort/1.0")
                 // 响应头必须在 60s 内返回（防 CDN 挂起连接）
                 .timeout(Duration.ofSeconds(60))
                 .GET();
@@ -155,7 +155,7 @@ public final class Downloader {
                     try {
                         java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
                                 .header("Range", "bytes=" + start + "-" + end)
-                                .header("User-Agent", "PCLJ/1.0")
+                                .header("User-Agent", "CraftPort/1.0")
                                 .timeout(Duration.ofSeconds(60))
                                 .GET().build();
                         data = Net.client().send(req, java.net.http.HttpResponse.BodyHandlers.ofByteArray()).body();

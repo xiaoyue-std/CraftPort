@@ -12,7 +12,7 @@ import java.util.Map;
  * PCL2 按 Normal/Registry/Instance 三种存储分别写 ini 与注册表；
  * Java 重构版统一改为 JSON 文件（跨平台无注册表）：
  *  - 全局设置：数据目录 config.json
- *  - 版本级设置：versions/{版本名}/PCLJ/Setup.json（对应 Instance 存储与 PCL\Setup.ini）
+ *  - 版本级设置：versions/{版本名}/CraftPort/Setup.json（对应 Instance 存储与 PCL\Setup.ini）
  */
 public final class Config {
     private static final Path GLOBAL_FILE = Os.dataDir().resolve("config.json");
@@ -105,7 +105,7 @@ public final class Config {
 
     private static Path versionSetupFile(String versionName) {
         return Path.of(get("CacheMinecraftDir", Os.defaultMinecraftDir().toString()),
-                "versions", versionName, "PCLJ", "Setup.json");
+                "versions", versionName, "CraftPort", "Setup.json");
     }
 
     /** 版本级设置辅助（String/Int/Bool）。 */
