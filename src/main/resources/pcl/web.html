@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCLJ Server Panel</title>
+<style>
+  :root { --bg:#141821; --card:#1d2330; --line:#2a3245; --fg:#dfe6f2; --sub:#8b96ad; --acc:#4f8ef7; --ok:#3ecf8e; --err:#f06060; --warn:#f0b548; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 "Segoe UI",system-ui,sans-serif; }
+  header { padding:14px 22px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:17px; font-weight:600; }
+  header span { color:var(--sub); font-size:12px; }
+  main { display:grid; grid-template-columns: 380px 1fr; gap:16px; padding:16px 22px; height:calc(100vh - 56px); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto; }
+  .card h2 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); }
+  label { display:block; margin:8px 0 4px; color:var(--sub); font-size:12px; }
+  input[type=text], input[type=number], select { width:100%; background:#12161f; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:7px 9px; font-size:13px; }
+  input[type=checkbox] { accent-color:var(--acc); }
+  button { background:var(--acc); color:#fff; border:0; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; }
+  button:hover { filter:brightness(1.1); }
+  button.ghost { background:#2a3245; }
+  button.danger { background:var(--err); }
+  button:disabled { opacity:.45; cursor:default; }
+  .server { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer; }
+  .server:hover, .server.sel { border-color:var(--acc); }
+  .server .name { font-weight:600; }
+  .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px; margin-left:6px; }
+  .b-run { background:rgba(62,207,142,.15); color:var(--ok); }
+  .b-stop { background:rgba(139,150,173,.15); color:var(--sub); }
+  .b-ext { background:rgba(240,181,72,.15); color:var(--warn); }
+  .row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  #log { background:#0d1117; border:1px solid var(--line); border-radius:8px; height:calc(100% - 96px); overflow:auto; padding:10px; font:12px/1.45 Consolas,"JetBrains Mono",monospace; white-space:pre-wrap; word-break:break-all; }
+  #log .err { color:var(--err); } #log .warn { color:var(--warn); }
+  .console-top { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .console-top input { flex:1; }
+  .progress { height:8px; background:#12161f; border-radius:4px; overflow:hidden; margin-top:10px; display:none; }
+  .progress > div { height:100%; background:var(--acc); width:0; transition:width .3s; }
+  .muted { color:var(--sub); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>PCLJ Server Panel</h1>
+  <span>deployed by <code>server web</code> — bound locally</span>
+</header>
+<main>
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <h2>Deploy new server</h2>
+      <label>Minecraft version</label>
+      <input type="text" id="mc" placeholder="1.20.6" value="1.20.6">
+      <label>Type</label>
+      <select id="type">
+        <option value="vanilla">vanilla (Mojang)</option>
+        <option value="fabric">fabric (official meta)</option>
+        <option value="forge">forge (official installer)</option>
+        <option value="paper">paper (Fill API)</option>
+      </select>
+      <label style="margin-top:10px"><input type="checkbox" id="eula"> I accept the Minecraft <a href="https://aka.ms/MinecraftEULA" target="_blank" style="color:var(--acc)">EULA</a></label>
+      <div class="row"><button id="deployBtn" onclick="deploy()">Deploy</button></div>
+      <div class="progress" id="depProg"><div id="depBar"></div></div>
+      <div class="muted" id="depMsg"></div>
+    </div>
+    <div class="card" style="height:calc(100% - 260px)">
+      <h2>Servers</h2>
+      <div id="servers"><div class="muted">Loading…</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Console <span id="conName" class="muted"></span></h2>
+    <div id="log"><div class="muted">Select a server you started from this panel.</div></div>
+    <div class="console-top">
+      <input type="text" id="cmd" placeholder="Console command, e.g. list / say hello / stop" onkeydown="if(event.key==='Enter')sendCmd()">
+      <button onclick="sendCmd()">Send</button>
+      <button class="ghost" onclick="doStop()">Stop</button>
+      <button class="danger" onclick="doKill()">Kill</button>
+    </div>
+    <div class="muted">Only servers started from this panel can be controlled here; CLI-started servers show as “running elsewhere”.</div>
+  </div>
+</main>
+<script>
+let selected = null, since = 0, pollTimer = null;
+
+async function api(path, body) {
+  const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {};
+  const r = await fetch(path, opt);
+  return r.json();
+}
+
+async function loadServers() {
+  const data = await api('/api/servers');
+  const box = document.getElementById('servers');
+  box.innerHTML = '';
+  if (!data.servers.length) { box.innerHTML = '<div class="muted">No servers yet — deploy one above.</div>'; return; }
+  for (const s of data.servers) {
+    const div = document.createElement('div');
+    div.className = 'server' + (selected === s.dir ? ' sel' : '');
+    let badge = '<span class="badge b-stop">stopped</span>';
+    if (s.running) badge = '<span class="badge b-run">running</span>';
+    else if (s.external) badge = '<span class="badge b-ext">running elsewhere</span>';
+    else if (s.exitCode !== undefined) badge = '<span class="badge b-stop">exited (' + s.exitCode + ')</span>';
+    div.innerHTML = '<div class="name">' + s.name + badge + '</div>'
+      + '<div class="muted">port ' + s.port + (s.eula ? ' · eula ✓' : ' · eula ✗') + '</div>';
+    div.onclick = () => selectServer(s);
+    box.appendChild(div);
+  }
+}
+
+function selectServer(s) {
+  selected = s.dir;
+  since = 0;
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('conName').textContent = '— ' + s.name;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollLogs, 1000);
+  pollLogs();
+  loadServers();
+}
+
+async function pollLogs() {
+  if (!selected) return;
+  const data = await api('/api/logs?dir=' + encodeURIComponent(selected) + '&since=' + since);
+  if (data.error) { document.getElementById('log').innerHTML += '<div class="err">' + data.error + '</div>'; clearInterval(pollTimer); return; }
+  const box = document.getElementById('log');
+  for (const line of data.lines) {
+    const div = document.createElement('div');
+    if (/ERROR|SEVERE|Exception/.test(line)) div.className = 'err';
+    else if (/WARN/.test(line)) div.className = 'warn';
+    div.textContent = line;
+    box.appendChild(div);
+  }
+  since = data.next;
+  box.scrollTop = box.scrollHeight;
+}
+
+async function deploy() {
+  const btn = document.getElementById('deployBtn');
+  btn.disabled = true;
+  const mc = document.getElementById('mc').value.trim();
+  const type = document.getElementById('type').value;
+  const eula = document.getElementById('eula').checked;
+  const msg = document.getElementById('depMsg'), prog = document.getElementById('depProg'), bar = document.getElementById('depBar');
+  prog.style.display = 'block'; msg.textContent = 'Starting…';
+  const res = await api('/api/deploy', {mc, type, eula});
+  if (res.error) { msg.textContent = res.error; btn.disabled = false; return; }
+  const timer = setInterval(async () => {
+    const st = await api('/api/deploy/status');
+    bar.style.width = Math.round(st.percent * 100) + '%';
+    msg.textContent = st.phase + (st.error ? ' — ' + st.error : '');
+    if (st.done) {
+      clearInterval(timer); btn.disabled = false;
+      msg.textContent = st.error ? ('Failed: ' + st.error) : ('Deployed: ' + st.resultDir);
+      loadServers();
+    }
+  }, 800);
+}
+
+async function doStop() {
+  if (!selected) return;
+  await api('/api/stop', {dir: selected});
+  loadServers();
+}
+async function doKill() {
+  if (!selected) return;
+  await api('/api/kill', {dir: selected});
+  loadServers();
+}
+async function sendCmd() {
+  if (!selected) return;
+  const input = document.getElementById('cmd');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  await api('/api/command', {dir: selected, cmd});
+  input.value = '';
+}
+
+loadServers();
+setInterval(loadServers, 3000);
+</script>
+</body>
+</html>

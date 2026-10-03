@@ -132,6 +132,8 @@ public final class CliMain {
                   server start [dir] [--memory MB] [--java path]
                                                 Start the server (interactive console;
                                                 default dir = the only deployed server)
+                  server web [--port 8765] [--host 127.0.0.1]
+                                                Start the web management panel (localhost)
                   server list                   List deployed servers
                   server service install [--dir path]
                                                 Install the systemd unit (Linux only)
@@ -475,6 +477,18 @@ public final class CliMain {
         // deploy 有一个位置参数（mcVersion）需要跳过，start/list 没有
         Map<String, String> flags = args.length > 1 ? parseFlags(args, "deploy".equals(args[0]) ? 2 : 1) : Map.of();
         switch (args[0]) {
+            case "web" -> {
+                int port = Integer.parseInt(flags.getOrDefault("port", "8765"));
+                String host = flags.getOrDefault("host", "127.0.0.1");
+                WebPanel.start(port, host);
+                // 阻塞主线程保活（否则末尾 System.exit 会立刻杀掉面板）
+                try {
+                    new java.util.concurrent.CountDownLatch(1).await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return 0;
+            }
             case "list" -> {
                 List<Path> servers = ServerDeployer.listServers();
                 if (servers.isEmpty()) {
@@ -519,7 +533,7 @@ public final class CliMain {
                     return 1;
                 }
                 warnIfRoot();
-                String mc = guessMcFromDir(dir);
+                String mc = ServerDeployer.mcFromDirName(dir);
                 String javaPath = flags.containsKey("java")
                         ? flags.get("java")
                         : ServerDeployer.resolveJava(mc, true).executable().toString();
@@ -547,13 +561,6 @@ public final class CliMain {
         StringBuilder sb = new StringBuilder("Multiple servers deployed; specify one with --dir:");
         for (Path p : servers) sb.append("\n  ").append(p);
         throw new IllegalArgumentException(sb.toString());
-    }
-
-    /** 目录名形如 {mc}-{type}，据此推断服务端所需的 Java 版本。 */
-    private static String guessMcFromDir(Path dir) {
-        String name = dir.getFileName().toString();
-        int dash = name.lastIndexOf('-');
-        return dash > 0 ? name.substring(0, dash) : name;
     }
 
     /** root 运行警告（Linux 服务端不应使用 root 账户）。 */

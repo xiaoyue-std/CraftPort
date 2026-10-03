@@ -320,6 +320,13 @@ public final class ServerDeployer {
         }
     }
 
+    /** 目录名形如 {mc}-{type}，据此推断服务端所需的 Java 版本（CLI 与 Web 面板共用）。 */
+    public static String mcFromDirName(Path dir) {
+        String name = dir.getFileName().toString();
+        int dash = name.lastIndexOf('-');
+        return dash > 0 ? name.substring(0, dash) : name;
+    }
+
     // ==================== 启动 ====================
 
     /**
