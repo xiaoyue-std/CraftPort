@@ -73,6 +73,7 @@
     <div class="console-top">
       <input type="text" id="cmd" placeholder="Console command, e.g. list / say hello / stop" onkeydown="if(event.key==='Enter')sendCmd()">
       <button onclick="sendCmd()">Send</button>
+      <button class="ghost" onclick="doStart()">Start</button>
       <button class="ghost" onclick="doStop()">Stop</button>
       <button class="danger" onclick="doKill()">Kill</button>
     </div>
@@ -80,7 +81,7 @@
   </div>
 </main>
 <script>
-let selected = null, since = 0, pollTimer = null;
+let selected = null, since = 0, pollTimer = null, logErr = 0;
 
 async function api(path, body) {
   const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {};
@@ -110,6 +111,7 @@ async function loadServers() {
 function selectServer(s) {
   selected = s.dir;
   since = 0;
+  logErr = 0;
   document.getElementById('log').innerHTML = '';
   document.getElementById('conName').textContent = '— ' + s.name;
   if (pollTimer) clearInterval(pollTimer);
@@ -121,7 +123,15 @@ function selectServer(s) {
 async function pollLogs() {
   if (!selected) return;
   const data = await api('/api/logs?dir=' + encodeURIComponent(selected) + '&since=' + since);
-  if (data.error) { document.getElementById('log').innerHTML += '<div class="err">' + data.error + '</div>'; clearInterval(pollTimer); return; }
+  if (data.error) {
+    // Start 后进程注册存在瞬间窗口：容错重试，连续失败才停止轮询
+    if (++logErr > 10) {
+      document.getElementById('log').innerHTML += '<div class="err">' + data.error + '</div>';
+      clearInterval(pollTimer);
+    }
+    return;
+  }
+  logErr = 0;
   const box = document.getElementById('log');
   for (const line of data.lines) {
     const div = document.createElement('div');
@@ -156,6 +166,16 @@ async function deploy() {
   }, 800);
 }
 
+async function doStart() {
+  if (!selected) return;
+  const r = await api('/api/start', {dir: selected, memory: 4096});
+  if (r.error) {
+    const box = document.getElementById('log');
+    box.innerHTML += '<div class="warn">' + r.error + '</div>';
+    box.scrollTop = box.scrollHeight;
+  }
+  loadServers();
+}
 async function doStop() {
   if (!selected) return;
   await api('/api/stop', {dir: selected});
