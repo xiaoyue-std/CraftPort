@@ -10,7 +10,9 @@
   body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 "Segoe UI",system-ui,sans-serif; }
   header { padding:14px 22px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
   header h1 { margin:0; font-size:17px; font-weight:600; }
+  header .right { display:flex; align-items:center; gap:12px; }
   header span { color:var(--sub); font-size:12px; }
+  #langBtn { background:transparent; border:1px solid var(--line); color:var(--fg); padding:4px 12px; font-size:12px; cursor:pointer; }
   main { display:grid; grid-template-columns: 380px 1fr; gap:16px; padding:16px 22px; height:calc(100vh - 56px); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto; }
   .card h2 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); }
@@ -41,79 +43,186 @@
 </head>
 <body>
 <header>
-  <h1>PCLJ Server Panel</h1>
-  <span>deployed by <code>server web</code> — bound locally</span>
+  <h1 data-i18n="title"></h1>
+  <div class="right">
+    <span data-i18n="subtitle"></span>
+    <button id="langBtn" onclick="toggleLang()"></button>
+  </div>
 </header>
 <main>
   <div>
     <div class="card" style="margin-bottom:16px">
-      <h2>Deploy new server</h2>
-      <label>Minecraft version</label>
+      <h2 data-i18n="deployTitle"></h2>
+      <label data-i18n="mcVersion"></label>
       <input type="text" id="mc" placeholder="1.20.6" value="1.20.6">
-      <label>Type</label>
+      <label data-i18n="type"></label>
       <select id="type">
-        <option value="vanilla">vanilla (Mojang)</option>
-        <option value="fabric">fabric (official meta)</option>
-        <option value="forge">forge (official installer)</option>
-        <option value="paper">paper (Fill API)</option>
+        <option value="vanilla" data-i18n="type_vanilla"></option>
+        <option value="fabric" data-i18n="type_fabric"></option>
+        <option value="forge" data-i18n="type_forge"></option>
+        <option value="paper" data-i18n="type_paper"></option>
       </select>
-      <label style="margin-top:10px"><input type="checkbox" id="eula"> I accept the Minecraft <a href="https://aka.ms/MinecraftEULA" target="_blank" style="color:var(--acc)">EULA</a></label>
-      <div class="row"><button id="deployBtn" onclick="deploy()">Deploy</button></div>
+      <label style="margin-top:10px"><input type="checkbox" id="eula"> <span data-i18n="eula"></span> <a href="https://aka.ms/MinecraftEULA" target="_blank" style="color:var(--acc)">EULA</a></label>
+      <div class="row"><button id="deployBtn" onclick="deploy()" data-i18n="deploy"></button></div>
       <div class="progress" id="depProg"><div id="depBar"></div></div>
       <div class="muted" id="depMsg"></div>
     </div>
     <div class="card" style="height:calc(100% - 260px)">
-      <h2>Servers</h2>
-      <div id="servers"><div class="muted">Loading…</div></div>
+      <h2 data-i18n="servers"></h2>
+      <div id="servers"><div class="muted"></div></div>
     </div>
   </div>
   <div class="card">
-    <h2>Console <span id="conName" class="muted"></span></h2>
-    <div id="log"><div class="muted">Select a server you started from this panel.</div></div>
+    <h2><span data-i18n="console"></span> <span id="conName" class="muted"></span></h2>
+    <div id="log"><div class="muted"></div></div>
     <div class="console-top">
-      <input type="text" id="cmd" placeholder="Console command, e.g. list / say hello / stop" onkeydown="if(event.key==='Enter')sendCmd()">
-      <button onclick="sendCmd()">Send</button>
-      <button class="ghost" onclick="doStart()">Start</button>
-      <button class="ghost" onclick="doStop()">Stop</button>
-      <button class="danger" onclick="doKill()">Kill</button>
+      <input type="text" id="cmd" data-i18n-ph="cmdPlaceholder" onkeydown="if(event.key==='Enter')sendCmd()">
+      <button onclick="sendCmd()" data-i18n="send"></button>
+      <button class="ghost" onclick="doStart()" data-i18n="start"></button>
+      <button class="ghost" onclick="doStop()" data-i18n="stop"></button>
+      <button class="danger" onclick="doKill()" data-i18n="kill"></button>
     </div>
-    <div class="muted">Only servers started from this panel can be controlled here; CLI-started servers show as “running elsewhere”.</div>
+    <div class="muted" data-i18n="note"></div>
   </div>
 </main>
 <script>
-let selected = null, since = 0, pollTimer = null, logErr = 0;
+// ==================== i18n ====================
+const I18N = {
+  en: {
+    title: "PCLJ Server Panel",
+    subtitle: "deployed via CLI `server web` — bound to localhost",
+    deployTitle: "Deploy new server",
+    mcVersion: "Minecraft version",
+    type: "Type",
+    type_vanilla: "vanilla (Mojang)",
+    type_fabric: "fabric (official meta)",
+    type_forge: "forge (official installer)",
+    type_paper: "paper (Fill API)",
+    eula: "I accept the Minecraft",
+    deploy: "Deploy",
+    servers: "Servers",
+    console: "Console",
+    cmdPlaceholder: "Console command, e.g. list / say hello / stop",
+    send: "Send", start: "Start", stop: "Stop", kill: "Kill",
+    note: "Only servers started from this panel can be controlled here; CLI-started servers show as “running elsewhere”.",
+    loading: "Loading…",
+    noServers: "No servers yet — deploy one above.",
+    status_running: "running", status_stopped: "stopped",
+    status_external: "running elsewhere", status_exited: "exited ({0})",
+    portEula: "port {0} · eula ✓", portNoEula: "port {0} · eula ✗",
+    deployStarting: "Starting…",
+    deployDone: "Deployed: {0}",
+    deployFailed: "Failed: {0}",
+    phase_starting: "preparing", phase_installing: "downloading & installing",
+    phase_done: "done", phase_failed: "failed",
+    PORT_BUSY: "Port {0} is already in use — the server may already be running.",
+    ALREADY_RUNNING: "Already running in this panel.",
+    NOT_MANAGED: "Not running in this panel.",
+    DEPLOY_IN_PROGRESS: "A deployment is already in progress.",
+    langBtn: "中文"
+  },
+  zh: {
+    title: "PCLJ 服务端管理面板",
+    subtitle: "由 CLI 命令 `server web` 启动 · 仅监听本机",
+    deployTitle: "部署新服务器",
+    mcVersion: "Minecraft 版本",
+    type: "类型",
+    type_vanilla: "原版（Mojang 官方）",
+    type_fabric: "Fabric（官方 meta）",
+    type_forge: "Forge（官方安装器）",
+    type_paper: "Paper（Fill API）",
+    eula: "我接受 Minecraft",
+    deploy: "部署",
+    servers: "服务器列表",
+    console: "控制台",
+    cmdPlaceholder: "服务端命令，例如 list / say hello / stop",
+    send: "发送", start: "启动", stop: "停止", kill: "强杀",
+    note: "仅本面板启动的实例可在此控制；通过 CLI 启动的会显示为“运行于其他地方”。",
+    loading: "加载中…",
+    noServers: "还没有服务器——先在上方部署一台。",
+    status_running: "运行中", status_stopped: "已停止",
+    status_external: "运行于其他地方", status_exited: "已退出（{0}）",
+    portEula: "端口 {0} · EULA ✓", portNoEula: "端口 {0} · EULA ✗",
+    deployStarting: "正在启动部署…",
+    deployDone: "部署完成：{0}",
+    deployFailed: "部署失败：{0}",
+    phase_starting: "准备中", phase_installing: "下载与安装中",
+    phase_done: "完成", phase_failed: "失败",
+    PORT_BUSY: "端口 {0} 已被占用——服务器可能已在运行。",
+    ALREADY_RUNNING: "该服务器已在本面板中运行。",
+    NOT_MANAGED: "该服务器未由本面板启动。",
+    DEPLOY_IN_PROGRESS: "已有部署任务进行中。",
+    langBtn: "English"
+  }
+};
+let lang = localStorage.getItem("pclj-lang") || "en";
 
+function t(key) {
+  const args = Array.prototype.slice.call(arguments, 1);
+  let s = (I18N[lang] && I18N[lang][key]) || I18N.en[key] || key;
+  args.forEach((a, i) => { s = s.split("{" + i + "}").join(a); });
+  return s;
+}
+
+function applyLang() {
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  document.title = t("title");
+  document.querySelectorAll("[data-i18n]").forEach(el => el.textContent = t(el.dataset.i18n));
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => el.placeholder = t(el.dataset.i18nPh));
+  document.getElementById("langBtn").textContent = t("langBtn");
+  loadServers();
+  const msg = document.getElementById("depMsg");
+  if (msg.dataset.key) msg.textContent = t(msg.dataset.key, msg.dataset.arg || "");
+}
+
+function toggleLang() {
+  lang = lang === "en" ? "zh" : "en";
+  localStorage.setItem("pclj-lang", lang);
+  applyLang();
+}
+
+// ==================== API ====================
 async function api(path, body) {
   const opt = body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {};
   const r = await fetch(path, opt);
   return r.json();
 }
 
+function errMsg(data) {
+  if (data.code && I18N[lang] && I18N[lang][data.code]) return t(data.code, data.port != null ? data.port : "");
+  return data.error || "unknown error";
+}
+
+// ==================== 服务器列表 ====================
 async function loadServers() {
   const data = await api('/api/servers');
   const box = document.getElementById('servers');
   box.innerHTML = '';
-  if (!data.servers.length) { box.innerHTML = '<div class="muted">No servers yet — deploy one above.</div>'; return; }
+  if (!data.servers.length) { box.innerHTML = '<div class="muted">' + t('noServers') + '</div>'; return; }
   for (const s of data.servers) {
     const div = document.createElement('div');
     div.className = 'server' + (selected === s.dir ? ' sel' : '');
-    let badge = '<span class="badge b-stop">stopped</span>';
-    if (s.running) badge = '<span class="badge b-run">running</span>';
-    else if (s.external) badge = '<span class="badge b-ext">running elsewhere</span>';
-    else if (s.exitCode !== undefined) badge = '<span class="badge b-stop">exited (' + s.exitCode + ')</span>';
+    let badge;
+    if (s.running) badge = '<span class="badge b-run">' + t('status_running') + '</span>';
+    else if (s.external) badge = '<span class="badge b-ext">' + t('status_external') + '</span>';
+    else if (s.exitCode !== undefined) badge = '<span class="badge b-stop">' + t('status_exited', s.exitCode) + '</span>';
+    else badge = '<span class="badge b-stop">' + t('status_stopped') + '</span>';
     div.innerHTML = '<div class="name">' + s.name + badge + '</div>'
-      + '<div class="muted">port ' + s.port + (s.eula ? ' · eula ✓' : ' · eula ✗') + '</div>';
+      + '<div class="muted">' + t(s.eula ? 'portEula' : 'portNoEula', s.port) + '</div>';
     div.onclick = () => selectServer(s);
     box.appendChild(div);
   }
 }
 
+// ==================== 控制台 ====================
+let selected = null, since = 0, pollTimer = null, logErr = 0;
+
 function selectServer(s) {
   selected = s.dir;
   since = 0;
   logErr = 0;
-  document.getElementById('log').innerHTML = '';
   document.getElementById('conName').textContent = '— ' + s.name;
+  document.getElementById('log').innerHTML = '';
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(pollLogs, 1000);
   pollLogs();
@@ -126,7 +235,8 @@ async function pollLogs() {
   if (data.error) {
     // Start 后进程注册存在瞬间窗口：容错重试，连续失败才停止轮询
     if (++logErr > 10) {
-      document.getElementById('log').innerHTML += '<div class="err">' + data.error + '</div>';
+      const box = document.getElementById('log');
+      box.innerHTML += '<div class="err">' + errMsg(data) + '</div>';
       clearInterval(pollTimer);
     }
     return;
@@ -144,41 +254,21 @@ async function pollLogs() {
   box.scrollTop = box.scrollHeight;
 }
 
-async function deploy() {
-  const btn = document.getElementById('deployBtn');
-  btn.disabled = true;
-  const mc = document.getElementById('mc').value.trim();
-  const type = document.getElementById('type').value;
-  const eula = document.getElementById('eula').checked;
-  const msg = document.getElementById('depMsg'), prog = document.getElementById('depProg'), bar = document.getElementById('depBar');
-  prog.style.display = 'block'; msg.textContent = 'Starting…';
-  const res = await api('/api/deploy', {mc, type, eula});
-  if (res.error) { msg.textContent = res.error; btn.disabled = false; return; }
-  const timer = setInterval(async () => {
-    const st = await api('/api/deploy/status');
-    bar.style.width = Math.round(st.percent * 100) + '%';
-    msg.textContent = st.phase + (st.error ? ' — ' + st.error : '');
-    if (st.done) {
-      clearInterval(timer); btn.disabled = false;
-      msg.textContent = st.error ? ('Failed: ' + st.error) : ('Deployed: ' + st.resultDir);
-      loadServers();
-    }
-  }, 800);
-}
-
+// ==================== 操作 ====================
 async function doStart() {
   if (!selected) return;
   const r = await api('/api/start', {dir: selected, memory: 4096});
   if (r.error) {
     const box = document.getElementById('log');
-    box.innerHTML += '<div class="warn">' + r.error + '</div>';
+    box.innerHTML += '<div class="warn">' + errMsg(r) + '</div>';
     box.scrollTop = box.scrollHeight;
   }
   loadServers();
 }
 async function doStop() {
   if (!selected) return;
-  await api('/api/stop', {dir: selected});
+  const r = await api('/api/stop', {dir: selected});
+  if (r.error) { const box = document.getElementById('log'); box.innerHTML += '<div class="warn">' + errMsg(r) + '</div>'; }
   loadServers();
 }
 async function doKill() {
@@ -195,6 +285,33 @@ async function sendCmd() {
   input.value = '';
 }
 
+// ==================== 部署 ====================
+async function deploy() {
+  const btn = document.getElementById('deployBtn');
+  btn.disabled = true;
+  const mc = document.getElementById('mc').value.trim();
+  const type = document.getElementById('type').value;
+  const eula = document.getElementById('eula').checked;
+  const msg = document.getElementById('depMsg'), prog = document.getElementById('depProg'), bar = document.getElementById('depBar');
+  prog.style.display = 'block'; msg.textContent = t('deployStarting');
+  const res = await api('/api/deploy', {mc, type, eula});
+  if (res.error) { msg.textContent = errMsg(res); btn.disabled = false; return; }
+  const timer = setInterval(async () => {
+    const st = await api('/api/deploy/status');
+    bar.style.width = Math.round((st.percent || 0) * 100) + '%';
+    msg.textContent = t('phase_' + st.phase) || st.phase;
+    if (st.done) {
+      clearInterval(timer); btn.disabled = false;
+      msg.dataset.key = st.error ? 'deployFailed' : 'deployDone';
+      msg.dataset.arg = st.error || st.resultDir || '';
+      msg.textContent = t(msg.dataset.key, msg.dataset.arg);
+      loadServers();
+    }
+  }, 800);
+}
+
+// ==================== 启动 ====================
+applyLang();
 loadServers();
 setInterval(loadServers, 3000);
 </script>

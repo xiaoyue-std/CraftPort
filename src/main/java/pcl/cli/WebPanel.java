@@ -117,7 +117,8 @@ public final class WebPanel {
 
         synchronized (WebPanel.class) {
             if (deployState != null && !deployState.done) {
-                sendJson(ex, 409, Map.of("error", "A deployment is already in progress"));
+                sendJson(ex, 409, Map.of("error", "A deployment is already in progress",
+                        "code", "DEPLOY_IN_PROGRESS"));
                 return;
             }
             deployState = new DeployState();
@@ -126,7 +127,7 @@ public final class WebPanel {
         Thread t = new Thread(() -> {
             DeployState s = deployState;
             try {
-                s.phase = "downloading/installing";
+                s.phase = "installing";
                 Path result = ServerDeployer.deploy(kind, mc, dir, eula, true,
                         (p, url) -> s.percent = p);
                 s.percent = 1;
@@ -164,12 +165,14 @@ public final class WebPanel {
 
         int port = ServerDeployer.serverPort(dir);
         if (ServerDeployer.portBusy(port)) {
-            sendJson(ex, 409, Map.of("error", "Port " + port + " already in use"));
+            sendJson(ex, 409, Map.of("error", "Port " + port + " already in use",
+                    "code", "PORT_BUSY", "port", port));
             return;
         }
         ServerManager.Instance existing = ServerManager.get(dir);
         if (existing != null && existing.process.isAlive()) {
-            sendJson(ex, 409, Map.of("error", "Already running in this panel"));
+            sendJson(ex, 409, Map.of("error", "Already running in this panel",
+                    "code", "ALREADY_RUNNING"));
             return;
         }
         String mc = ServerDeployer.mcFromDirName(dir);
@@ -183,7 +186,7 @@ public final class WebPanel {
         Path dir = Path.of(body.get("dir").getAsString());
         boolean sent = ServerManager.stop(dir);
         if (sent) sendJson(ex, 200, Map.of("ok", true, "message", "stop command sent"));
-        else sendJson(ex, 409, Map.of("error", "Not running in this panel"));
+        else sendJson(ex, 409, Map.of("error", "Not running in this panel", "code", "NOT_MANAGED"));
     }
 
     private static void apiKill(HttpExchange ex) throws IOException {
@@ -198,7 +201,8 @@ public final class WebPanel {
         Path dir = Path.of(query.get("dir"));
         int since = Integer.parseInt(query.getOrDefault("since", "0"));
         ServerManager.Instance inst = ServerManager.get(dir);
-        if (inst == null) { sendJson(ex, 409, Map.of("error", "Not running in this panel")); return; }
+        if (inst == null) { sendJson(ex, 409, Map.of("error", "Not running in this panel",
+                "code", "NOT_MANAGED")); return; }
         List<String> lines = inst.tail(since);
         sendJson(ex, 200, Map.of("next", inst.logSize(), "lines", lines, "alive", inst.process.isAlive()));
     }
