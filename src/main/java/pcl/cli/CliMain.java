@@ -54,6 +54,7 @@ public final class CliMain {
     public static void main(String[] args) {
         // CLI mode: core (Chinese) logs go to file only; this class prints English output
         Log.setConsoleEnabled(false);
+        Log.initFile(Os.dataDir());
         int code;
         try {
             code = args.length == 0 ? interactive() : dispatch(args);
@@ -134,6 +135,7 @@ public final class CliMain {
                                                 default dir = the only deployed server)
                   server web [--port 8765] [--host 127.0.0.1]
                                                 Start the web management panel (localhost)
+                  server delete --dir <dir>      Delete a deployed server (cannot be undone)
                   server list                   List deployed servers
                   server service install [--dir path]
                                                 Install the systemd unit (Linux only)
@@ -510,6 +512,18 @@ public final class CliMain {
                     Thread.currentThread().interrupt();
                 }
                 return 0;
+            }
+            case "delete" -> {
+                Path dir = resolveServerDir(flags.get("dir"));
+                Path serversRoot = McFolder.selectedRoot().resolve("servers").normalize();
+                if (!dir.toAbsolutePath().normalize().startsWith(serversRoot) || dir.equals(serversRoot)) {
+                    throw new IllegalArgumentException("Only servers under " + serversRoot + " can be deleted");
+                }
+                if (ServerDeployer.portBusy(ServerDeployer.serverPort(dir))) {
+                    throw new IllegalArgumentException("Port in use - stop the server first");
+                }
+                ServerDeployer.deleteServer(dir);
+                System.out.println("Deleted: " + dir);
             }
             case "list" -> {
                 List<Path> servers = ServerDeployer.listServers();

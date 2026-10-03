@@ -341,6 +341,30 @@ public final class ServerDeployer {
         return pb.start();
     }
 
+    /**
+     * 删除已部署的服务端目录（递归）。仅允许删除包含部署标记（eula.txt/server.properties）
+     * 且位于游戏目录内的目录；运行中的实例由调用方先行停止。
+     */
+    public static void deleteServer(Path dir) throws IOException {
+        Path norm = dir.toAbsolutePath().normalize();
+        if (!Files.isDirectory(norm)) throw new IOException("Directory does not exist: " + norm);
+        boolean marker = Files.exists(norm.resolve("eula.txt")) || Files.exists(norm.resolve("server.properties"));
+        if (!marker) throw new IOException("Not a deployed server directory (missing eula.txt/server.properties)");
+        Files.walkFileTree(norm, new java.nio.file.SimpleFileVisitor<Path>() {
+            @Override
+            public java.nio.file.FileVisitResult visitFile(Path file, java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                Files.delete(file);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+            @Override
+            public java.nio.file.FileVisitResult postVisitDirectory(Path d, IOException e) throws IOException {
+                Files.delete(d);
+                return java.nio.file.FileVisitResult.CONTINUE;
+            }
+        });
+        Log.info("服务端已删除: " + norm);
+    }
+
     /** 读取 server.properties 的监听端口（缺省 25565）。 */
     public static int serverPort(Path dir) {
         try {

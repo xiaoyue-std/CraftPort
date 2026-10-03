@@ -69,6 +69,7 @@ public final class WebPanel {
                 case "/api/start" -> apiStart(ex);
                 case "/api/stop" -> apiStop(ex);
                 case "/api/kill" -> apiKill(ex);
+                case "/api/delete" -> apiDelete(ex);
                 case "/api/logs" -> apiLogs(ex);
                 case "/api/command" -> apiCommand(ex);
                 default -> sendJson(ex, 404, Map.of("error", "Not found"));
@@ -260,6 +261,41 @@ public final class WebPanel {
         JsonObject body = GSON.fromJson(body(ex), JsonObject.class);
         Path dir = Path.of(body.get("dir").getAsString());
         ServerManager.kill(dir);
+        sendJson(ex, 200, Map.of("ok", true));
+    }
+
+    /** 删除已部署的服务端目录（仅限游戏目录内 servers/ 下的部署，运行中拒绝）。 */
+    private static void apiDelete(HttpExchange ex) throws IOException {
+        JsonObject body = GSON.fromJson(body(ex), JsonObject.class);
+        Path dir = Path.of(body.get("dir").getAsString()).toAbsolutePath().normalize();
+        Path mcRoot = McFolder.selectedRoot().toAbsolutePath().normalize();
+        Path serversRoot = mcRoot.resolve("servers").normalize();
+
+        if (!dir.startsWith(serversRoot) || dir.equals(serversRoot)) {
+            sendJson(ex, 400, Map.of("error", "Only servers under " + serversRoot + " can be deleted here",
+                    "code", "NOT_DELETABLE"));
+            return;
+        }
+        ServerManager.Instance inst = ServerManager.get(dir);
+        if (inst != null && inst.process.isAlive()) {
+            sendJson(ex, 409, Map.of("error", "Stop the server before deleting it",
+                    "code", "SERVER_RUNNING"));
+            return;
+        }
+        int port = ServerDeployer.serverPort(dir);
+        if (Files.exists(dir.resolve("eula.txt")) || Files.exists(dir.resolve("server.properties"))) {
+            if (ServerDeployer.portBusy(port)) {
+                sendJson(ex, 409, Map.of("error", "Port " + port + " in use - server may be running elsewhere",
+                        "code", "SERVER_RUNNING"));
+                return;
+            }
+        }
+        try {
+            ServerDeployer.deleteServer(dir);
+        } catch (IOException e) {
+            sendJson(ex, 400, Map.of("error", String.valueOf(e.getMessage()), "code", "DELETE_FAILED"));
+            return;
+        }
         sendJson(ex, 200, Map.of("ok", true));
     }
 
