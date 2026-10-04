@@ -126,14 +126,14 @@ public final class WebPanel {
         sendJson(ex, 200, Map.of("servers", servers));
     }
 
-    /** 可部署的正式版列表（最新 100 个，供面板下拉选择）。 */
+    /** 可部署的正式版列表（全部正式版,供面板按系列分组选择）。 */
     private static void apiVersions(HttpExchange ex) throws IOException {
         List<Map<String, Object>> versions = new ArrayList<>();
         for (pcl.minecraft.InstallService.Release r : pcl.minecraft.InstallService.fetchManifest()) {
             if (!r.isRelease()) continue;
             versions.add(Map.of("id", r.id(), "date",
                     r.releaseTime().length() >= 10 ? r.releaseTime().substring(0, 10) : ""));
-            if (versions.size() >= 100) break;
+            if (versions.size() >= 500) break; // 安全上限
         }
         sendJson(ex, 200, Map.of("versions", versions));
     }

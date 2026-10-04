@@ -19,7 +19,8 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
 - Web 面板：`server web`（127.0.0.1:8765），部署/启动/停止/实时日志（小窗可收起）/
   控制台命令/server.properties 编辑/Mods 下载（双源搜索 + 自动依赖补全 + 热门榜 +
   mc百科直达）/设置（内存/JVM 参数/下载限速/部署目录）/服务器详情（SLP 在线人数）/
-  主机资源监控（CPU/内存/磁盘），API 全流程实测
+  主机资源监控（CPU/内存/磁盘）/部署版本级联菜单（系列→版本,全部正式版,<1.10 归远古），
+  API 全流程实测
 - Java 管理：21 优先策略、Mojang 运行时自动下载（`ensureComponent`）、Linux 补执行权限
 - UI：雪山侧栏、自绘标题栏、磁贴下载页、动画（Animate.java），快照验证通过
 

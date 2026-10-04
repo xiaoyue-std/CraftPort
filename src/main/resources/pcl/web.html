@@ -111,6 +111,9 @@
       <h2 data-i18n="deployTitle"></h2>
       <label data-i18n="mcVersion"></label>
       <div class="row" style="margin:0">
+        <select id="mcSeries" style="flex:1" onchange="fillVersions()"></select>
+      </div>
+      <div class="row" style="margin:6px 0 0">
         <select id="mc" style="flex:1"></select>
         <button class="ghost" onclick="loadVersions()" data-i18n="refresh"></button>
       </div>
@@ -264,7 +267,7 @@ const I18N = {
     deployTitle: "Deploy new server",
     mcVersion: "Minecraft version",
     refresh: "Refresh",
-    versionsHint: "Latest 100 releases (auto-fetched)",
+    versionsHint: "Pick a series, then a version (all releases fetched)",
     versionsLoading: "Loading versions…",
     versionsFail: "Failed to load versions - click Refresh to retry.",
     type: "Type",
@@ -288,6 +291,8 @@ const I18N = {
     status_running: "running", status_stopped: "stopped",
     status_external: "running elsewhere", status_exited: "exited ({0})",
     portEula: "port {0} · eula ✓", portNoEula: "port {0} · eula ✗",
+    ancientSeries: "Ancient versions (< 1.10)",
+    seriesLabel: "{0} series",
     deployStarting: "Starting…",
     deployDone: "Deployed: {0}",
     deployFailed: "Failed: {0}",
@@ -348,7 +353,7 @@ const I18N = {
     deployTitle: "部署新服务器",
     mcVersion: "Minecraft 版本",
     refresh: "刷新",
-    versionsHint: "最新 100 个正式版（自动拉取）",
+    versionsHint: "先选系列,再选具体版本（已拉取全部正式版）",
     versionsLoading: "正在拉取版本列表…",
     versionsFail: "版本列表拉取失败 - 点击刷新重试。",
     type: "类型",
@@ -372,6 +377,8 @@ const I18N = {
     status_running: "运行中", status_stopped: "已停止",
     status_external: "运行于其他地方", status_exited: "已退出（{0}）",
     portEula: "端口 {0} · EULA ✓", portNoEula: "端口 {0} · EULA ✗",
+    ancientSeries: "远古版本（1.10 以前）",
+    seriesLabel: "{0} 系列",
     deployStarting: "正在启动部署…",
     deployDone: "部署完成：{0}",
     deployFailed: "部署失败：{0}",
@@ -467,21 +474,61 @@ function errMsg(data) {
   return data.error || "unknown error";
 }
 
-// ==================== 版本下拉 ====================
+// ==================== 版本下拉(系列→版本级联) ====================
+let versionGroups = {};   // 系列 label -> 版本数组(新在前)
+const ANCIENT = 'ancient';
+
+/** MC 版本 → 系列名:1.21.1→"1.21"、1.21→"1.21"(新版号)26.3→"26.3";1.10 以前归远古。 */
+function seriesOf(id) {
+  const p = id.split('.');
+  if (p[0] === '1' && p.length >= 2) {
+    const major = parseInt(p[1]);
+    if (!isNaN(major) && major < 10) return ANCIENT;
+    return '1.' + p[1];
+  }
+  return p.length >= 2 ? p[0] + '.' + p[1] : id; // 26.x 新版号取前两段(26.1.2 → 26.1)
+}
+
 async function loadVersions() {
+  const seriesSel = document.getElementById('mcSeries');
   const sel = document.getElementById('mc');
-  sel.innerHTML = '<option>' + t('versionsLoading') + '</option>';
+  seriesSel.innerHTML = '<option>' + t('versionsLoading') + '</option>';
+  sel.innerHTML = '';
   try {
     const data = await api('/api/versions');
-    sel.innerHTML = '';
-    for (const v of data.versions) {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = v.id + '   ' + v.date;
-      sel.appendChild(opt);
+    versionGroups = {};
+    for (const v of (data.versions || [])) {
+      const g = seriesOf(v.id);
+      if (!versionGroups[g]) versionGroups[g] = [];
+      versionGroups[g].push(v);
     }
+    // 系列按首个版本(最新)排序,远古固定最后
+    const labels = Object.keys(versionGroups).sort((a, b) =>
+      a === ANCIENT ? 1 : b === ANCIENT ? -1 :
+      (versionGroups[b][0].id > versionGroups[a][0].id ? 1 : -1));
+    seriesSel.innerHTML = '';
+    for (const l of labels) {
+      const opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = l === ANCIENT ? t('ancientSeries') : t('seriesLabel', l)
+        + ' (' + versionGroups[l].length + ')';
+      seriesSel.appendChild(opt);
+    }
+    fillVersions();
   } catch (e) {
-    sel.innerHTML = '<option>' + t('versionsFail') + '</option>';
+    seriesSel.innerHTML = '<option>' + t('versionsFail') + '</option>';
+  }
+}
+
+function fillVersions() {
+  const l = document.getElementById('mcSeries').value;
+  const sel = document.getElementById('mc');
+  sel.innerHTML = '';
+  for (const v of (versionGroups[l] || [])) {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.id + '   ' + v.date;
+    sel.appendChild(opt);
   }
 }
 
