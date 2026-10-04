@@ -126,7 +126,7 @@ public final class CliMain {
                   launch <version> [--username u] [--server host[:port]]
                                 [--no-isolation] [--no-wait]
                                                 Launch a version (offline login)
-                  server deploy <mcVersion> [--type vanilla|fabric|forge|paper]
+                  server deploy <mcVersion> [--type vanilla|fabric|forge|neoforge|paper]
                                 [--dir path] [--accept-eula] [--no-auto-java]
                                                 One-click server deployment (jar + eula +
                                                 server.properties + start scripts)
@@ -535,7 +535,7 @@ public final class CliMain {
                 for (Path p : servers) System.out.println("  " + p);
             }
             case "deploy" -> {
-                if (args.length < 2) throw new IllegalArgumentException("Usage: server deploy <mcVersion> [--type vanilla|fabric|forge|paper] [--dir path] [--accept-eula]");
+                if (args.length < 2) throw new IllegalArgumentException("Usage: server deploy <mcVersion> [--type vanilla|fabric|forge|neoforge|paper] [--dir path] [--accept-eula]");
                 String mc = args[1];
                 ServerDeployer.Kind kind = ServerDeployer.Kind.valueOf(
                         flags.getOrDefault("type", "vanilla").toUpperCase());

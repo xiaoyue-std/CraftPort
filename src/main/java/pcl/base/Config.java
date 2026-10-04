@@ -147,6 +147,14 @@ public final class Config {
     public static final String LAUNCH_ARGUMENT_VISIBLE = "LaunchArgumentVisible";
     /** 选择的 .minecraft 目录。 */
     public static final String CACHE_MINECRAFT_DIR = "CacheMinecraftDir";
+    /** 服务端默认内存（MB），面板启动与部署脚本默认值。 */
+    public static final String SERVER_MEMORY_MB = "ServerMemoryMb";
+    /** 服务端额外 JVM 参数（空格分隔，追加在内存参数之后、-jar/@argfiles 之前）。 */
+    public static final String SERVER_JVM_ARGS = "ServerJvmArgs";
+    /** 下载速度限制（KB/s，0 = 不限制），对单文件与分片下载全局生效。 */
+    public static final String DOWNLOAD_SPEED_LIMIT = "DownloadSpeedLimit";
+    /** 服务端默认部署根目录（空 = {游戏目录}/servers）。 */
+    public static final String SERVER_DEPLOY_DIR = "ServerDeployDir";
 
     /** PCL2 默认 JVM 参数（去掉仅 Windows 有意义的 allowAmbiguousCommands）。 */
     public static final String DEFAULT_JVM_ARGS =
