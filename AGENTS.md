@@ -12,19 +12,30 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
 
 ### 已完成且实测通过
 - 客户端全链路：版本安装 → 库/资源补全 → 参数构建 → 真实启动（1.20.6 原版/Fabric/Forge 实测到渲染）
-- 加载器安装：Fabric（官方 meta）、Forge 1.13+（官方安装器 `--installServer` 无头 + BMCLAPI）、OptiFine（官方 `doInstall` 无头）
+- 加载器安装：Fabric（官方 meta）、Forge 1.13+（官方安装器 `--installServer` 无头 + BMCLAPI）、OptiFine（官方 `doInstall` 无头）、NeoForge 服务端（maven 安装器 + BMCLAPI，1.20.2+，实机 1.21.1 启动到 Done）
 - 双模组源：CurseForge（MCIMirror 代理 + forgecdn 直链）+ Modrinth（官方 API）；四种内容类型（mod/resourcepack/shader/datapack）分类落位
 - 整合包：CurseForge zip 解析 → 基础版本+加载器+成员 mod 批量下载+overrides；客户端/服务端双模式；自动生成配套客户端包 zip
-- 服务端：vanilla/Fabric/Forge/Paper 一键部署（ServerDeployer）、端口预检、start.sh 写 Java 绝对路径、systemd 单元生成与 `server service install`
-- Web 面板：`server web`（127.0.0.1:8765），部署/启动/停止/实时日志/控制台命令，API 全流程实测
+- 服务端：vanilla/Fabric/Forge/NeoForge/Paper 一键部署（ServerDeployer）、端口预检、start.sh 写 Java 绝对路径、systemd 单元生成与 `server service install`
+- Web 面板：`server web`（127.0.0.1:8765），部署/启动/停止/实时日志（小窗可收起）/
+  控制台命令/server.properties 编辑/Mods 下载（双源搜索 + 自动依赖补全 + 热门榜 +
+  mc百科直达）/设置（内存/JVM 参数/下载限速/部署目录）/服务器详情（SLP 在线人数）/
+  主机资源监控（CPU/内存/磁盘），API 全流程实测
 - Java 管理：21 优先策略、Mojang 运行时自动下载（`ensureComponent`）、Linux 补执行权限
 - UI：雪山侧栏、自绘标题栏、磁贴下载页、动画（Animate.java），快照验证通过
 
+### Linux 实机验证（2026-10-03，Ubuntu 26.04）
+
+- 构建产物两个 jar 正常；CLI 冒烟（help/status/versions/server list）通过，XDG 数据目录正确
+- Fabric 1.20.6 一键部署：start.sh 执行权限 ✓、Java 绝对路径 ✓、systemd 单元生成 ✓
+- 面板 API 全流程（启动→Done→控制台→优雅停止 exit 0）`ALL-PASS`，属性编辑 `PROPS-ALL-PASS`
+- systemd 实装（`systemctl enable --now`）与 root 警告、ANSI 颜色仍未在实机跑过
+
 ### 未完成 / 待验证
-- **Linux 实机验证**（systemd 实装、root 警告、ANSI、POSIX 权限——代码就绪但没跑过真机）
+- systemd 服务实装实测（单元文件已生成,未 `enable --now` 过）；root 运行提示未实测
 - 微软登录需自备 Azure client_id（`PCL_MS_CLIENT_ID`），未实测
-- 未移植：崩溃分析、皮肤站、统一通行证/authlib-injector、NeoForge、Forge 1.12-
-- CurseForge 大模组文件列表首拉慢（镜像限速，JEI ~60s，有内存缓存）
+- 未移植：崩溃分析、皮肤站、统一通行证/authlib-injector、Forge 1.12-、NeoForge 客户端启动（服务端已支持）
+- CurseForge 大模组文件列表首拉慢（镜像限速 ~30KB/s，770KB 的 search 响应要 25s，
+  与客户端无关——wget 同样慢；热门榜单已把 pageSize 降到 15，有内存缓存）
 
 ## 环境（本机 Windows，注意 mvn 不在 PATH！）
 
@@ -41,6 +52,9 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
   自动截四个页面 PNG（MainApp.runSnapshots，页面间停顿已调好）
 - **CLI 冒烟**：`java -jar target/CraftPort-cli.jar help` / `versions` / `status`
 - **Web 面板 API**：`python test/webpanel_test.py`（需先 `server web` + 部署一个 fabric 服务端）
+- **属性编辑 API**：`python test/props_test.py`（同样需 `server web`；覆盖 unicode/反斜杠往返、运行中拒绝、恢复原值）
+- **Mods 下载/依赖补全**：`python test/mods_test.py`（需 `server web` + fabric 服务端；
+  实测 CF 装 sodium 自动补 fabric-api、MR 装 lithium、重安装去重跳过）
 - **端到端启动**：`test/LaunchTest.java`、`test/LoaderTest.java`（javac 编到 test/ 后跑，
   会真实下载约 600MB，慎用；历史上已验证过，非启动链路改动不必重跑）
 
@@ -59,6 +73,13 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
 | `minecraft/ModpackInstaller.java` | 整合包双模式；worker 捕获 `IOException | RuntimeException`；结果按磁盘文件数统计 |
 | `minecraft/ServerDeployer.java` | 部署/startCommand（脚本·unit·进程三处共用）/端口预检/systemd 单元 |
 | `minecraft/ServerManager.java` | 面板托管进程注册表（捕获输出、stdin 命令） |
+| `minecraft/ServerProperties.java` | server.properties 读写（Properties 转义往返；**注释里别写 `\u` 字面量**——词法层就报 illegal unicode escape） |
+| `minecraft/ServerPing.java` | Server List Ping 手写 varint 帧（查询在线人数/MOTD，外部启动的实例也有效）；失败返回 null 由调用方兜底 |
+| `minecraft/ModsService.java` | 面板 Mod 下载 + 依赖补全。**MCIMirror 返回的 CF 元数据 dependencies 全为空**，
+依赖主来源是 jar 内声明（fabric.mod.json depends / mods.toml），modId 经 Modrinth 解析；
+`fabric-*` 模块 id 回落到 fabric-api。mcmod 直链：解析 search.mcmod.cn 服务端渲染 HTML 取首条
+class/modpack 链接（内存缓存），失败回退搜索页。中文搜索：关键词含 CJK 时经 mcmod 搜索页
+桥接英文名（标题「钠 (Sodium)」），前 3 个英文名到目标源检索融合，镜像限速下总时长可控 |
 | `cli/WebPanel.java` | HttpServer 路由；`server web` 需主线程 `CountDownLatch.await()` 保活（**System.exit 会杀面板**） |
 | `ui/Animate.java` | 全部 UI 动画（CSS effect 与 Java setEffect 冲突：启动按钮/磁贴的阴影由 Java 管） |
 
@@ -90,7 +111,6 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
 
 ## 下一步（按优先级）
 
-1. Linux 实机全流程验证（README「Linux 服务端工作流」章节即测试脚本）
+1. systemd 服务实装实测（`server service install` → `systemctl enable --now`）+ root 警告/ANSI 颜色实机确认
 2. 微软登录实测（注册 Azure 应用 → `PCL_MS_CLIENT_ID`）
-3. 服务端向迭代候选：Paper 插件源（Hangar API 免密钥）、world 备份/恢复、
-   server.properties 编辑面板、多实例内存配额
+3. 服务端向迭代候选：Paper 插件源（Hangar API 免密钥）、world 备份/恢复、多实例内存配额
