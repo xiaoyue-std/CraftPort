@@ -165,7 +165,7 @@ public final class ModpackInstaller {
                         if (modProgress != null) modProgress.accept(done[0], total);
                     }
                 }
-            }, "pclj-modpack");
+            }, "craftport-modpack");
             workers.add(t);
             t.start();
         }
@@ -206,7 +206,7 @@ public final class ModpackInstaller {
 
     /** 下载整合包 zip、解包并解析 manifest（staging 目录随 finally 清理）。 */
     private static Prepared prepare(CurseForge.ModInfo pack, CurseForge.FileInfo packFile) throws IOException {
-        Path staging = Files.createTempDirectory("pclj-modpack");
+        Path staging = Files.createTempDirectory("craftport-modpack");
         System.out.println("Downloading modpack zip (" + String.format("%.1fMB", packFile.size() / 1048576.0) + ")...");
         Path zip = staging.resolve("pack.zip");
         Downloader.download(new Downloader.DownloadItem(

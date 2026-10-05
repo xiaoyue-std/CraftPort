@@ -250,12 +250,12 @@
 <script>
 // ==================== 主题 ====================
 function applyTheme() {
-  const light = localStorage.getItem('pclj-theme') === 'light';
+  const light = localStorage.getItem('craftport-theme') === 'light';
   document.body.classList.toggle('light', light);
   document.getElementById('themeBtn').textContent = light ? '🌙' : '☀️';
 }
 function toggleTheme() {
-  localStorage.setItem('pclj-theme', localStorage.getItem('pclj-theme') === 'light' ? 'dark' : 'light');
+  localStorage.setItem('craftport-theme', localStorage.getItem('craftport-theme') === 'light' ? 'dark' : 'light');
   applyTheme();
 }
 
@@ -434,7 +434,7 @@ const I18N = {
     langBtn: "English"
   }
 };
-let lang = localStorage.getItem("pclj-lang") || "en";
+let lang = localStorage.getItem("craftport-lang") || "en";
 
 function t(key) {
   const args = Array.prototype.slice.call(arguments, 1);
@@ -458,7 +458,7 @@ function applyLang() {
 
 function toggleLang() {
   lang = lang === "en" ? "zh" : "en";
-  localStorage.setItem("pclj-lang", lang);
+  localStorage.setItem("craftport-lang", lang);
   applyLang();
 }
 

@@ -65,7 +65,7 @@ java -jar target/CraftPort-1.0.0-cli.jar # CLI（或 ./run-cli.sh、run-cli.cmd�
 左侧雪山导航三页：**启动游戏**（版本选择 / 离线登录 / 启动进度 / 实时日志）、
 **下载游戏**（正式版 / Fabric / Forge / CurseForge 磁贴入口）、**启动器设置**
 （游戏目录 / 下载源 / 内存 / Java 管理 / GC / 版本隔离）。登录为离线模式，
-微软登录需自备 Azure 应用 ID（环境变量 `PCL_MS_CLIENT_ID`）。
+微软登录需自备 Azure 应用 ID（环境变量 `CRAFTPORT_MS_CLIENT_ID`）。
 
 ---
 

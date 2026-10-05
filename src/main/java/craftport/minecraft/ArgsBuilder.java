@@ -254,7 +254,7 @@ public final class ArgsBuilder {
         map.put("${library_directory}", mcRoot.resolve("libraries").toString());
         map.put("${libraries_directory}", mcRoot.resolve("libraries").toString());
         map.put("${pure_directory}", Os.pureDir().toString());
-        map.put("${launcher_name}", "PCL");
+        map.put("${launcher_name}", "CraftPort");
         map.put("${launcher_version}", "1.0.0");
         map.put("${version_name}", version.name());
         map.put("${game_directory}", o.gameDir().toString());

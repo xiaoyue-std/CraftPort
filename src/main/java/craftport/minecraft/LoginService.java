@@ -12,7 +12,7 @@ import java.util.Map;
 
 /**
  * 登录模块，移植自 ModLaunch.vb 的登录部分（McLoginServer / GetLegacyUuid / 微软六步登录）。
- * 支持：离线登录、微软登录（Device Code 流，client_id 需自行注册或用环境变量 PCL_MS_CLIENT_ID）。
+ * 支持：离线登录、微软登录（Device Code 流，client_id 需自行注册或用环境变量 CRAFTPORT_MS_CLIENT_ID）。
  */
 public final class LoginService {
 
@@ -93,7 +93,7 @@ public final class LoginService {
             throws IOException, InterruptedException {
         String clientId = clientId();
         if (clientId.isBlank()) {
-            throw new IOException("未配置微软登录应用 ID。请先在 Azure 注册应用并设置环境变量 PCL_MS_CLIENT_ID，"
+            throw new IOException("未配置微软登录应用 ID。请先在 Azure 注册应用并设置环境变量 CRAFTPORT_MS_CLIENT_ID，"
                     + "或使用离线登录。");
         }
         // 第 1 步：获取设备码

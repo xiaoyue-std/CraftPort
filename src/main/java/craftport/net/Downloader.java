@@ -143,7 +143,7 @@ public final class Downloader {
 
     private static void downloadSimple(String url, Path dest, long total,
                                        BiConsumer<Double, String> progress) throws IOException {
-        Path tmp = dest.resolveSibling(dest.getFileName() + ".pcltmp");
+        Path tmp = dest.resolveSibling(dest.getFileName() + ".cptmp");
         try (InputStream in = Net.client().send(request(url).build(),
                         java.net.http.HttpResponse.BodyHandlers.ofInputStream()).body();
              OutputStream out = Files.newOutputStream(tmp)) {
@@ -178,7 +178,7 @@ public final class Downloader {
 
     private static void downloadSegmented(String url, Path dest, long total,
                                           BiConsumer<Double, String> progress) throws IOException {
-        Path tmp = dest.resolveSibling(dest.getFileName() + ".pcltmp");
+        Path tmp = dest.resolveSibling(dest.getFileName() + ".cptmp");
         int segments = Math.max(2, Math.min(8, (int) (total / (1024 * 1024))));
         long chunk = total / segments;
         AtomicLong downloaded = new AtomicLong();

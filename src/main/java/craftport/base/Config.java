@@ -23,7 +23,7 @@ public final class Config {
     public static String cacheUuid = "";
     public static String cacheAccessToken = "";
     public static String cacheRefreshToken = ""; // 微软登录刷新令牌
-    public static String cacheClientId = "";     // 微软登录应用 ID，可用环境变量 PCL_MS_CLIENT_ID 覆盖
+    public static String cacheClientId = "";     // 微软登录应用 ID，可用环境变量 CRAFTPORT_MS_CLIENT_ID 覆盖
 
     /** 最近一次选择的版本（对应 PCL.ini 的 Version 缓存）。 */
     public static String cacheVersion = "";
@@ -47,7 +47,7 @@ public final class Config {
         cacheAccessToken = Json.str(global, "CacheAccessToken", "");
         cacheRefreshToken = Json.str(global, "CacheRefreshToken", "");
         cacheClientId = Json.str(global, "CacheClientId",
-                Os.env("PCL_MS_CLIENT_ID", ""));
+                Os.env("CRAFTPORT_MS_CLIENT_ID", ""));
         cacheVersion = Json.str(global, "CacheVersion", "");
         launchFolders = Json.str(global, "LaunchFolders", "");
     }

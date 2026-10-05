@@ -370,7 +370,7 @@ public final class ServerDeployer {
         Files.writeString(dir.resolve("start.bat"),
                 "@echo off\r\ncd /d %~dp0\r\n" + shellJoin(cmd) + "\r\npause\r\n",
                 StandardCharsets.UTF_8);
-        Files.writeString(dir.resolve("pclj-server.service"), systemdUnit(dir, cmd), StandardCharsets.UTF_8);
+        Files.writeString(dir.resolve("craftport-server.service"), systemdUnit(dir, cmd), StandardCharsets.UTF_8);
         if (!Os.IS_WINDOWS) {
             try {
                 Files.setPosixFilePermissions(dir.resolve("start.sh"),
@@ -378,7 +378,7 @@ public final class ServerDeployer {
             } catch (UnsupportedOperationException ignored) {}
         }
         System.out.println("Written: eula.txt, server.properties, start.sh, start.bat"
-                + (Os.IS_LINUX ? ", pclj-server.service (systemd)" : ", pclj-server.service"));
+                + (Os.IS_LINUX ? ", craftport-server.service (systemd)" : ", craftport-server.service"));
     }
 
     /**

@@ -630,9 +630,9 @@ public final class CliMain {
             return 1;
         }
         Path dir = resolveServerDir(flags.get("dir"));
-        Path unit = dir.resolve("pclj-server.service");
+        Path unit = dir.resolve("craftport-server.service");
         if (!Files.exists(unit)) throw new IllegalArgumentException("Unit file not found: " + unit + " (re-deploy first)");
-        String svcName = "pclj-" + dir.getFileName() + ".service";
+        String svcName = "craftport-" + dir.getFileName() + ".service";
         Path systemDir = Path.of("/etc/systemd/system");
         Path target = systemDir.resolve(svcName);
 

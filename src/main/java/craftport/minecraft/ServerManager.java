@@ -82,7 +82,7 @@ public final class ServerManager {
                 Thread.currentThread().interrupt();
             }
             Log.info("托管服务端退出: " + inst.dir + " code=" + inst.exitCode);
-        }, "pclj-panel-log");
+        }, "craftport-panel-log");
         reader.setDaemon(true);
         reader.start();
         return inst;

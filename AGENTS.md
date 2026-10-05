@@ -32,7 +32,7 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
 
 ### 未完成 / 待验证
 - systemd 服务实装实测（单元文件已生成,未 `enable --now` 过）；root 运行提示未实测
-- 微软登录需自备 Azure client_id（`PCL_MS_CLIENT_ID`），未实测
+- 微软登录需自备 Azure client_id（`CRAFTPORT_MS_CLIENT_ID`），未实测
 - 未移植：崩溃分析、皮肤站、统一通行证/authlib-injector、Forge 1.12-、NeoForge 客户端启动（服务端已支持）
 - CurseForge 大模组文件列表首拉慢（镜像限速 ~30KB/s，770KB 的 search 响应要 25s，
   与客户端无关——wget 同样慢；热门榜单已把 pageSize 降到 15，有内存缓存）
@@ -110,5 +110,5 @@ class/modpack 链接（内存缓存），失败回退搜索页。中文搜索：
 ## 下一步（按优先级）
 
 1. systemd 服务实装实测（`server service install` → `systemctl enable --now`）+ root 警告/ANSI 颜色实机确认
-2. 微软登录实测（注册 Azure 应用 → `PCL_MS_CLIENT_ID`）
+2. 微软登录实测（注册 Azure 应用 → `CRAFTPORT_MS_CLIENT_ID`）
 3. 服务端向迭代候选：Paper 插件源（Hangar API 免密钥）、world 备份/恢复、多实例内存配额

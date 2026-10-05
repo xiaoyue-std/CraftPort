@@ -66,10 +66,10 @@ public final class McFolder {
                 JsonObject o = new JsonObject();
                 o.addProperty("clientToken", "23323323323323323323323323323333");
                 JsonObject profilesObj = new JsonObject();
-                JsonObject pclProfile = new JsonObject();
-                pclProfile.addProperty("name", "CraftPort");
-                pclProfile.addProperty("type", "custom");
-                profilesObj.add("pclj", pclProfile);
+                JsonObject craftProfile = new JsonObject();
+                craftProfile.addProperty("name", "CraftPort");
+                craftProfile.addProperty("type", "custom");
+                profilesObj.add("craftport", craftProfile);
                 o.add("profiles", profilesObj);
                 Files.writeString(profiles, Json.GSON.toJson(o), StandardCharsets.UTF_8);
             }
