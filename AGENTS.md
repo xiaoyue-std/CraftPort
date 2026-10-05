@@ -5,8 +5,7 @@
 ## 项目是什么
 
 Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构版。
-**一套核心（`pcl.base/net/minecraft`）、两个前端**：JavaFX 图形界面（`pcl.ui`）
-+ 纯英文 CLI（`pcl.cli`，产物无 JavaFX）。**主发展方向：Linux 服务端部署与管理。**
+**纯 CLI（`pcl.cli`）**。**主发展方向：Linux 服务端部署与管理。**
 
 ## 当前进度（2026-10 快照）
 
@@ -36,10 +35,8 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
 
 ## 验证手段（改完必须验）
 
-- **编译**：上面的 mvn 命令；产物两个 jar
-- **UI 快照**（免桌面）：`java -Dpclj.snapshot=target/shots -jar target/CraftPort.jar`
-  自动截四个页面 PNG（MainApp.runSnapshots，页面间停顿已调好）
-- **CLI 冒烟**：`java -jar target/CraftPort-cli.jar help` / `versions` / `status`
+- **编译**：上面的 mvn 命令；产物单个 `target/CraftPort.jar`
+- **CLI 冒烟**：`java -jar target/CraftPort.jar help` / `versions` / `status`
 - **Web 面板 API**：`python test/webpanel_test.py`（需先 `server web` + 部署一个 fabric 服务端）
 - **端到端启动**：`test/LaunchTest.java`、`test/LoaderTest.java`（javac 编到 test/ 后跑，
   会真实下载约 600MB，慎用；历史上已验证过，非启动链路改动不必重跑）
@@ -83,7 +80,7 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
 ## 约定
 
 - CLI 终端输出**纯英文**（`CliMain`），核心模块日志中文（只进文件）
-- 面板/部署类新功能：逻辑放 `pcl.minecraft`（GUI 将来可复用），CLI 只做展示层
+- 面板/部署类新功能：逻辑放 `pcl.minecraft`，`pcl.cli`/`WebPanel` 只做展示层
 - 新设置项：键名沿用 PCL2 命名（如 `LaunchArgumentIndieV2`）
 - git：master 分支；提交信息中文一行式（现状 `89a9cd0` 面板、`ecbfe8a` 初始）
 - 测试脚本/临时代码放 `test/`，**不要**把 target/、日志、截图提交进 git

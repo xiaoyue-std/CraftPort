@@ -27,7 +27,7 @@ import java.util.Scanner;
 /**
  * CraftPort — command line interface (English only).
  *
- * Usage: java -jar CraftPort-cli.jar [command] [args]
+ * Usage: java -jar CraftPort.jar [command] [args]
  * Run without arguments for the interactive menu.
  *
  * Reuses the exact core pipeline of the GUI edition (installation, loaders,
@@ -104,8 +104,8 @@ public final class CliMain {
         System.out.println("""
                 CraftPort (CLI)
 
-                Usage: java -jar CraftPort-cli.jar <command> [args]
-                       java -jar CraftPort.jar cli <command> [args]
+                Usage: java -jar CraftPort.jar <command> [args]
+                       
 
                 Commands:
                   versions                      List installed versions in the game directory

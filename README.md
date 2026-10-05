@@ -1,43 +1,27 @@
-# CraftPort — CraftPort
+# CraftPort
 
-[Plain Craft Launcher 2](https://github.com/Hex-Dragon/PCL2)（VB.NET / WPF）的 Java 重构版。
-一套核心、两个面孔：**PCL2 风格的图形界面** + **面向 Linux 服务器的纯英文命令行**，
-下载走 BMCLAPI / MCIMirror 镜像，国内网络开箱即用。
+Minecraft 客户端与服务端一体化命令行工具，源自对
+[Plain Craft Launcher 2](https://github.com/Hex-Dragon/PCL2)（VB.NET / WPF）核心能力的 Java 重构。
+**纯 CLI、单 jar（约 0.5MB）、零依赖**（仅 Gson），下载走 BMCLAPI / MCIMirror 镜像，国内网络开箱即用。
 
-- **启动客户端**：版本安装、Fabric / Forge / OptiFine、整合包、模组/资源包/光影/数据包
-- **部署服务器**：vanilla / Fabric / Forge / Paper 一键部署，systemd 常驻，配套客户端包分发
-- **跨平台**：Windows / Linux / macOS，同一个 jar；CLI 产物无 JavaFX，无头服务器可直接跑
+- **客户端**：版本安装、Fabric / Forge / OptiFine、整合包、模组/资源包/光影/数据包（CurseForge + Modrinth 双源）、离线登录、一键启动
+- **服务端（主方向）**：vanilla / Fabric / Forge / Paper 一键部署、整合包服务端化、配套客户端包分发、systemd 常驻、Web 管理面板
+- **跨平台**：Windows / Linux / macOS 无头环境均可运行
 
 ---
 
 ## 构建与运行
 
-环境要求：**JDK 21+**、Maven 3.8+（运行时若用发行版 JRE，同样需要 21）。
+环境要求：**JDK 21+**、Maven 3.8+（运行时同样需要 JRE 21）。
 
 ```bash
-mvn package
+mvn package                # 产物: target/CraftPort.jar（约 0.5MB）
+./run.sh                   # Linux / macOS（自动优先 Java 21）
+run.cmd                    # Windows
+# 或直接: java -jar target/CraftPort.jar <command>
 ```
 
-产物（`target/`）：
-
-| 产物 | 用途 |
-|---|---|
-| `CraftPort.jar`（约 11MB） | 图形界面；内含全平台 JavaFX |
-| `CraftPort-cli.jar`（约 0.7MB） | 纯英文命令行，无 JavaFX，无头环境可跑 |
-
-```bash
-java -jar target/CraftPort.jar          # GUI（Windows / Linux / macOS）
-java -jar target/CraftPort-cli.jar      # CLI（或 ./run-cli.sh、run-cli.cmd、java -jar target/CraftPort.jar cli ...）
-```
-
----
-
-## 图形界面
-
-左侧雪山导航三页：**启动游戏**（版本选择 / 离线登录 / 启动进度 / 实时日志）、
-**下载游戏**（正式版 / Fabric / Forge / CurseForge 磁贴入口）、**启动器设置**
-（游戏目录 / 下载源 / 内存 / Java 管理 / GC / 版本隔离）。登录为离线模式，
-微软登录需自备 Azure 应用 ID（环境变量 `PCL_MS_CLIENT_ID`）。
+不带参数运行进入交互式菜单。
 
 ---
 
@@ -164,8 +148,7 @@ apt / dnf / pacman 安装命令；CLI 输出带 ANSI 颜色（遵循 `NO_COLOR`�
 
 ```
 pcl/
-├── Launcher.java            入口分发（GUI / cli）
-├── cli/CliMain.java         纯英文命令行（子命令 + 交互菜单）
+├── cli/CliMain.java        纯英文命令行（子命令 + 交互菜单）
 ├── base/                    日志 / 平台适配(Os) / 配置(Config) / 任务体系(Task) / JSON
 ├── net/                     重试策略 + BMCLAPI 镜像换算(Net) / 多线程下载(Downloader)
 ├── minecraft/               McFolder·McVersion·Library（版本解析与隔离）
