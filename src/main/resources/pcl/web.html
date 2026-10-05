@@ -5,23 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CraftPort Server Panel</title>
 <style>
-  :root { --bg:#141821; --card:#1d2330; --line:#2a3245; --fg:#dfe6f2; --sub:#8b96ad; --acc:#4f8ef7; --ok:#3ecf8e; --err:#f06060; --warn:#f0b548; }
+  :root { --bg:#141821; --card:#1d2330; --line:#2a3245; --fg:#dfe6f2; --sub:#8b96ad; --acc:#4f8ef7; --ok:#3ecf8e; --err:#f06060; --warn:#f0b548; --input:#12161f; --logbg:#0d1117; --ghostbg:#2a3245; --ghostfg:#ffffff; --overlay:rgba(0,0,0,.55); color-scheme:dark; }
+  body.light { --bg:#f2f4f8; --card:#ffffff; --line:#d8deea; --fg:#1d2634; --sub:#6a7590; --acc:#2f6fe4; --ok:#189a64; --err:#d64545; --warn:#b97a12; --input:#edf0f7; --logbg:#f7f9fc; --ghostbg:#e3e8f2; --ghostfg:#1d2634; --overlay:rgba(30,40,70,.35); color-scheme:light; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 "Segoe UI",system-ui,sans-serif; }
   header { padding:14px 22px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
   header h1 { margin:0; font-size:17px; font-weight:600; }
   header .right { display:flex; align-items:center; gap:12px; }
   header span { color:var(--sub); font-size:12px; }
-  #langBtn { background:transparent; border:1px solid var(--line); color:var(--fg); padding:4px 12px; font-size:12px; cursor:pointer; }
-  main { display:grid; grid-template-columns: 380px 1fr; gap:16px; padding:16px 22px; height:calc(100vh - 56px); }
+  #langBtn, #themeBtn, #settingsBtn { background:transparent; border:1px solid var(--line); color:var(--fg); padding:4px 12px; font-size:12px; cursor:pointer; }
+  main { display:grid; grid-template-columns: 380px minmax(0, 1fr); gap:16px; padding:16px 22px; height:calc(100vh - 56px); }
   .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; overflow:auto; }
   .card h2 { margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--sub); }
   label { display:block; margin:8px 0 4px; color:var(--sub); font-size:12px; }
-  input[type=text], input[type=number], select { width:100%; background:#12161f; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:7px 9px; font-size:13px; }
+  input[type=text], input[type=number], select { width:100%; background:var(--input); border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:7px 9px; font-size:13px; }
   input[type=checkbox] { accent-color:var(--acc); }
   button { background:var(--acc); color:#fff; border:0; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; }
   button:hover { filter:brightness(1.1); }
-  button.ghost { background:#2a3245; }
+  button.ghost { background:var(--ghostbg); color:var(--ghostfg); }
   button.danger { background:var(--err); }
   button:disabled { opacity:.45; cursor:default; }
   .server { border:1px solid var(--line); border-radius:8px; padding:10px; margin-bottom:8px; cursor:pointer; }
@@ -32,29 +33,87 @@
   .b-stop { background:rgba(139,150,173,.15); color:var(--sub); }
   .b-ext { background:rgba(240,181,72,.15); color:var(--warn); }
   .row { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-  #log { background:#0d1117; border:1px solid var(--line); border-radius:8px; height:calc(100% - 96px); overflow:auto; padding:10px; font:12px/1.45 Consolas,"JetBrains Mono",monospace; white-space:pre-wrap; word-break:break-all; }
+  #log { background:var(--logbg); border:1px solid var(--line); border-radius:8px; flex:1; min-height:0; margin:8px 0; overflow:auto; padding:10px; font:12px/1.45 Consolas,"JetBrains Mono",monospace; white-space:pre-wrap; word-break:break-all; }
   #log .err { color:var(--err); } #log .warn { color:var(--warn); }
   .console-top { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
   .console-top input { flex:1; }
-  .progress { height:8px; background:#12161f; border-radius:4px; overflow:hidden; margin-top:10px; display:none; }
+  .progress { height:8px; background:var(--input); border-radius:4px; overflow:hidden; margin-top:10px; display:none; }
   .progress > div { height:100%; background:var(--acc); width:0; transition:width .3s; }
   .muted { color:var(--sub); font-size:12px; }
+  #hostStats { color:var(--sub); font-size:12px; white-space:nowrap; }
+  .server-info-btn { position:absolute; top:6px; right:6px; background:transparent; border:0; color:var(--sub); cursor:pointer; font-size:15px; padding:2px 6px; line-height:1; }
+  .server-info-btn:hover { color:var(--acc); }
+  .server { position:relative; }
+  .detail-grid { display:grid; grid-template-columns:130px 1fr; gap:5px 12px; font-size:13px; margin:12px 0; word-break:break-all; }
+  .detail-grid .k { color:var(--sub); }
+  #detailPlayers { font-size:15px; font-weight:600; color:var(--fg); }
+  .settings-field { margin-bottom:10px; }
+  .ver-row { display:flex; gap:10px; padding:8px 10px; border-bottom:1px solid var(--line); align-items:flex-start; cursor:pointer; }
+  .ver-row:last-child { border-bottom:0; }
+  .ver-row:hover { background:var(--input); }
+  .ver-row input { margin-top:2px; flex:none; }
+  .ver-main { flex:1; min-width:0; }
+  .ver-name { font-size:13px; font-weight:600; word-break:break-all; }
+  .ver-meta { color:var(--sub); font-size:11px; }
+  .overlay { position:fixed; inset:0; background:var(--overlay); display:none; align-items:center; justify-content:center; z-index:10; }
+  .overlay.open { display:flex; }
+  .props-card { width:min(720px, 92vw); max-height:82vh; display:flex; flex-direction:column; }
+  .props-card h2 { flex:none; }
+  #propsFilter { flex:none; margin-bottom:10px; }
+  .props-grid { flex:1; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  .props-row { display:flex; border-bottom:1px solid var(--line); min-height:32px; }
+  .props-row:last-child { border-bottom:0; }
+  .props-row.hide { display:none; }
+  .props-key { width:250px; flex:none; padding:6px 10px; font:12px/1.6 Consolas,monospace; color:var(--sub); background:var(--input); word-break:break-all; }
+  .props-val { flex:1; width:100%; background:transparent; border:0; color:var(--fg); padding:6px 10px; font:12px Consolas,monospace; outline:none; border-radius:0; }
+  .props-val:focus { background:var(--logbg); }
+  .props-val bool { padding:6px 9px; }
+  .right-col { display:flex; flex-direction:column; gap:16px; min-height:0; min-width:0; }
+  .left-col { display:flex; flex-direction:column; gap:16px; min-height:0; min-width:0; overflow:hidden; }
+  .deploy-card { flex:none; max-height:70%; overflow:auto; }
+  .servers-card { flex:1; min-height:0; }
+  .mods-card { flex:1; min-height:0; min-width:0; display:flex; flex-direction:column; }
+  .mods-card .row select { width:auto; flex:none; }
+  .mods-list { flex:1; overflow:auto; border:1px solid var(--line); border-radius:8px; margin-top:8px; }
+  .mod-item { display:flex; gap:10px; padding:8px 10px; border-bottom:1px solid var(--line); align-items:flex-start; min-width:0; }
+  .mod-item:last-child { border-bottom:0; }
+  .mod-icon { width:36px; height:36px; border-radius:6px; flex:none; object-fit:cover; background:#12161f; border:1px solid var(--line); }
+  .mod-actions { display:flex; gap:6px; align-items:center; flex:none; }
+  .wiki-link { background:var(--ghostbg); color:var(--ghostfg); border-radius:6px; padding:8px 12px; font-size:13px; text-decoration:none; white-space:nowrap; }
+  .wiki-link:hover { filter:brightness(1.15); }
+  .icon-btn { width:36px; height:36px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; }
+  .icon-btn svg { display:block; }
+  .mod-main { flex:1; min-width:0; }
+  .mod-name { font-weight:600; font-size:13px; }
+  .mod-sum { color:var(--sub); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mod-dl { color:var(--sub); font-size:11px; }
+  .console-card { height:250px; flex:none; min-width:0; display:flex; flex-direction:column; }
+  .console-head { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .console-card.collapsed { height:auto; }
+  .console-card.collapsed #log, .console-card.collapsed .console-top, .console-card.collapsed .console-note { display:none; }
+  #modType, #modSource, #modLoader { width:auto; flex:none; }
 </style>
 </head>
 <body>
 <header>
   <h1 data-i18n="title"></h1>
   <div class="right">
+    <span id="hostStats"></span>
     <span data-i18n="subtitle"></span>
+    <button id="themeBtn" onclick="toggleTheme()"></button>
     <button id="langBtn" onclick="toggleLang()"></button>
+    <button id="settingsBtn" onclick="openSettings()" title="Settings">⚙</button>
   </div>
 </header>
 <main>
-  <div>
-    <div class="card" style="margin-bottom:16px">
+  <div class="left-col">
+    <div class="card deploy-card">
       <h2 data-i18n="deployTitle"></h2>
       <label data-i18n="mcVersion"></label>
       <div class="row" style="margin:0">
+        <select id="mcSeries" style="flex:1" onchange="fillVersions()"></select>
+      </div>
+      <div class="row" style="margin:6px 0 0">
         <select id="mc" style="flex:1"></select>
         <button class="ghost" onclick="loadVersions()" data-i18n="refresh"></button>
       </div>
@@ -64,6 +123,7 @@
         <option value="vanilla" data-i18n="type_vanilla"></option>
         <option value="fabric" data-i18n="type_fabric"></option>
         <option value="forge" data-i18n="type_forge"></option>
+        <option value="neoforge" data-i18n="type_neoforge"></option>
         <option value="paper" data-i18n="type_paper"></option>
       </select>
       <label style="margin-top:10px"><input type="checkbox" id="eula"> <span data-i18n="eula"></span> <a href="https://aka.ms/MinecraftEULA" target="_blank" style="color:var(--acc)">EULA</a></label>
@@ -74,26 +134,131 @@
       <div class="progress" id="depProg"><div id="depBar"></div></div>
       <div class="muted" id="depMsg"></div>
     </div>
-    <div class="card" style="height:calc(100% - 260px)">
+    <div class="card servers-card">
       <h2 data-i18n="servers"></h2>
       <div id="servers"><div class="muted"></div></div>
     </div>
   </div>
-  <div class="card">
-    <h2><span data-i18n="console"></span> <span id="conName" class="muted"></span></h2>
-    <div id="log"><div class="muted"></div></div>
-    <div class="console-top">
-      <input type="text" id="cmd" data-i18n-ph="cmdPlaceholder" onkeydown="if(event.key==='Enter')sendCmd()">
-      <button onclick="sendCmd()" data-i18n="send"></button>
-      <button class="ghost" onclick="doStart()" data-i18n="start"></button>
-      <button class="ghost" onclick="doStop()" data-i18n="stop"></button>
-      <button class="danger" onclick="doKill()" data-i18n="kill"></button>
-      <button class="danger" id="delBtn" onclick="doDelete()" data-i18n="delete"></button>
+  <div class="right-col">
+    <div class="card mods-card">
+      <h2 data-i18n="modsTitle"></h2>
+      <div class="row" style="margin:0">
+        <input type="text" id="modQuery" style="flex:1;min-width:140px" data-i18n-ph="modsSearchPh" onkeydown="if(event.key==='Enter')searchMods()">
+        <select id="modType" onchange="onModFilterChange()">
+          <option value="mod" data-i18n="type_mod"></option>
+          <option value="resourcepack" data-i18n="type_resourcepack"></option>
+          <option value="shader" data-i18n="type_shader"></option>
+          <option value="datapack" data-i18n="type_datapack"></option>
+        </select>
+        <select id="modSource" onchange="onModFilterChange()">
+          <option value="curseforge">CurseForge</option>
+          <option value="modrinth">Modrinth</option>
+        </select>
+        <select id="modLoader">
+          <option value="fabric">Fabric</option>
+          <option value="forge">Forge</option>
+          <option value="neoforge">NeoForge</option>
+        </select>
+        <button onclick="searchMods()" data-i18n="modsSearch"></button>
+      </div>
+      <div class="muted" id="modTarget" style="margin-top:6px"></div>
+      <div class="muted" id="modMode"></div>
+      <div class="progress" id="modProg"><div id="modBar"></div></div>
+      <div class="muted" id="modMsg"></div>
+      <div class="mods-list" id="modList"><div class="muted"></div></div>
     </div>
-    <div class="muted" data-i18n="note"></div>
+    <div class="card console-card" id="consoleCard">
+      <div class="console-head">
+        <h2 style="cursor:pointer;margin:0" onclick="toggleConsole()"><span data-i18n="console"></span> <span id="conName" class="muted"></span></h2>
+        <div class="row" style="margin:0" onclick="event.stopPropagation()">
+          <button class="ghost" onclick="doStart()" data-i18n="start"></button>
+          <button class="ghost" onclick="doStop()" data-i18n="stop"></button>
+          <button class="danger" onclick="doKill()" data-i18n="kill"></button>
+          <button class="ghost" onclick="openProps()" data-i18n="props"></button>
+          <button class="danger" id="delBtn" onclick="doDelete()" data-i18n="delete"></button>
+          <button class="ghost" id="conToggleBtn" onclick="toggleConsole()" data-i18n="collapse"></button>
+        </div>
+      </div>
+      <div id="log"><div class="muted"></div></div>
+      <div class="console-top">
+        <input type="text" id="cmd" data-i18n-ph="cmdPlaceholder" onkeydown="if(event.key==='Enter')sendCmd()">
+        <button onclick="sendCmd()" data-i18n="send"></button>
+      </div>
+      <div class="muted console-note" data-i18n="note"></div>
+    </div>
   </div>
 </main>
+<div class="overlay" id="propsOverlay" onclick="if(event.target===this)closeProps()">
+  <div class="card props-card">
+    <h2><span data-i18n="propsTitle"></span> <span id="propsName" class="muted"></span></h2>
+    <input type="text" id="propsFilter" data-i18n-ph="propsFilter" oninput="filterProps()">
+    <div class="props-grid" id="propsGrid"></div>
+    <div class="row">
+      <button onclick="saveProps()" data-i18n="save"></button>
+      <button class="ghost" onclick="closeProps()" data-i18n="close"></button>
+      <span class="muted" id="propsMsg"></span>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+  <div class="card props-card">
+    <h2 data-i18n="settingsTitle"></h2>
+    <div class="settings-field">
+      <label data-i18n="setMemory"></label>
+      <input type="number" id="setMemory" min="512" max="65536">
+    </div>
+    <div class="settings-field">
+      <label data-i18n="setJvm"></label>
+      <input type="text" id="setJvm" data-i18n-ph="setJvmPh">
+    </div>
+    <div class="settings-field">
+      <label data-i18n="setSpeed"></label>
+      <input type="number" id="setSpeed" min="0">
+    </div>
+    <div class="settings-field">
+      <label data-i18n="setDeployDir"></label>
+      <input type="text" id="setDeployDir" data-i18n-ph="setDeployDirPh">
+    </div>
+    <div class="row">
+      <button onclick="saveSettings()" data-i18n="save"></button>
+      <button class="ghost" onclick="closeSettings()" data-i18n="close"></button>
+      <span class="muted" id="setMsg"></span>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="card props-card">
+    <h2><span data-i18n="detailTitle"></span> <span id="detailName" class="muted"></span></h2>
+    <div class="detail-grid" id="detailGrid"></div>
+    <div id="detailPlayers"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="ghost" onclick="closeDetail()" data-i18n="close"></button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="verOverlay" onclick="if(event.target===this)closeVersions()">
+  <div class="card props-card">
+    <h2><span data-i18n="verTitle"></span> <span id="verName" class="muted"></span></h2>
+    <div class="props-grid" id="verList"></div>
+    <div class="row" style="margin-top:12px">
+      <button onclick="installVersion()" data-i18n="verInstall"></button>
+      <button class="ghost" onclick="closeVersions()" data-i18n="close"></button>
+      <span class="muted" id="verMsg"></span>
+    </div>
+  </div>
+</div>
 <script>
+// ==================== 主题 ====================
+function applyTheme() {
+  const light = localStorage.getItem('pclj-theme') === 'light';
+  document.body.classList.toggle('light', light);
+  document.getElementById('themeBtn').textContent = light ? '🌙' : '☀️';
+}
+function toggleTheme() {
+  localStorage.setItem('pclj-theme', localStorage.getItem('pclj-theme') === 'light' ? 'dark' : 'light');
+  applyTheme();
+}
+
 // ==================== i18n ====================
 const I18N = {
   en: {
@@ -102,13 +267,14 @@ const I18N = {
     deployTitle: "Deploy new server",
     mcVersion: "Minecraft version",
     refresh: "Refresh",
-    versionsHint: "Latest 100 releases (auto-fetched)",
+    versionsHint: "Pick a series, then a version (all releases fetched)",
     versionsLoading: "Loading versions…",
     versionsFail: "Failed to load versions - click Refresh to retry.",
     type: "Type",
     type_vanilla: "vanilla (Mojang)",
     type_fabric: "fabric (official meta)",
     type_forge: "forge (official installer)",
+    type_neoforge: "neoforge (official installer)",
     type_paper: "paper (Fill API)",
     eula: "I accept the Minecraft",
     deploy: "Deploy",
@@ -125,6 +291,8 @@ const I18N = {
     status_running: "running", status_stopped: "stopped",
     status_external: "running elsewhere", status_exited: "exited ({0})",
     portEula: "port {0} · eula ✓", portNoEula: "port {0} · eula ✗",
+    ancientSeries: "Ancient versions (< 1.10)",
+    seriesLabel: "{0} series",
     deployStarting: "Starting…",
     deployDone: "Deployed: {0}",
     deployFailed: "Failed: {0}",
@@ -134,6 +302,47 @@ const I18N = {
     ALREADY_RUNNING: "Already running in this panel.",
     NOT_MANAGED: "Not running in this panel.",
     DEPLOY_IN_PROGRESS: "A deployment is already in progress.",
+    props: "Properties",
+    propsTitle: "server.properties",
+    propsFilter: "Filter keys…",
+    save: "Save", close: "Close",
+    saved: "Saved.",
+    propsFail: "Failed to load properties.",
+    NO_PROPERTIES: "server.properties not found.",
+    EDIT_RUNNING: "Stop the server before editing properties.",
+    modsTitle: "Mods & content",
+    modsSearchPh: "Search CurseForge / Modrinth… (中文 also works)",
+    modsSearch: "Search",
+    type_mod: "Mod", type_resourcepack: "Resource pack", type_shader: "Shader", type_datapack: "Datapack",
+    loaderLabel: "Loader",
+    modsNeedServer: "Select a server first — content installs into its directory.",
+    modsTarget: "Target: {0}",
+    modsSearching: "Searching…",
+    modsNoResult: "No results.",
+    hotTitle: "Popular {0} · sorted by downloads",
+    modsInstalling: "Resolving dependencies & downloading…",
+    modsDone: "Installed {0} file(s) · skipped {1} · failed {2}. Restart the server to apply.",
+    modsFailList: "Failed: {0}",
+    install: "Install",
+    wikiLink: "mc百科",
+    MODS_BUSY: "Another mod install is in progress.",
+    BAD_TYPE: "Unknown content type.",
+    hostMem: "RAM {0}/{1}", hostDisk: "Disk {0}/{1}GB",
+    settingsTitle: "Settings",
+    setMemory: "Server memory (MB)",
+    setJvm: "Extra JVM args (space-separated)",
+    setJvmPh: "e.g. -XX:+UseG1GC -XX:MaxGCPauseMillis=50",
+    setSpeed: "Download speed limit (KB/s, 0 = unlimited)",
+    setDeployDir: "Server deploy root directory",
+    setDeployDirPh: "empty = {game dir}/servers",
+    detailTitle: "Server details",
+    detailType: "Game / Type", detailPort: "Port", detailEula: "EULA",
+    detailStatus: "Status", detailPid: "PID", detailDir: "Directory",
+    playersOnline: "Players online: {0} / {1}",
+    playersUnknown: "Players: unknown (offline or not a Minecraft port)",
+    verTitle: "Select version",
+    verInstall: "Install selected",
+    verNone: "No compatible files.",
     modpackFrom: "…or deploy from a CurseForge modpack (type & EULA above apply)",
     deployPackBtn: "Deploy modpack server",
     langBtn: "中文"
@@ -144,13 +353,14 @@ const I18N = {
     deployTitle: "部署新服务器",
     mcVersion: "Minecraft 版本",
     refresh: "刷新",
-    versionsHint: "最新 100 个正式版（自动拉取）",
+    versionsHint: "先选系列,再选具体版本（已拉取全部正式版）",
     versionsLoading: "正在拉取版本列表…",
     versionsFail: "版本列表拉取失败 - 点击刷新重试。",
     type: "类型",
     type_vanilla: "原版（Mojang 官方）",
     type_fabric: "Fabric（官方 meta）",
     type_forge: "Forge（官方安装器）",
+    type_neoforge: "NeoForge（官方安装器）",
     type_paper: "Paper（Fill API）",
     eula: "我接受 Minecraft",
     deploy: "部署",
@@ -167,6 +377,8 @@ const I18N = {
     status_running: "运行中", status_stopped: "已停止",
     status_external: "运行于其他地方", status_exited: "已退出（{0}）",
     portEula: "端口 {0} · EULA ✓", portNoEula: "端口 {0} · EULA ✗",
+    ancientSeries: "远古版本（1.10 以前）",
+    seriesLabel: "{0} 系列",
     deployStarting: "正在启动部署…",
     deployDone: "部署完成：{0}",
     deployFailed: "部署失败：{0}",
@@ -176,6 +388,47 @@ const I18N = {
     ALREADY_RUNNING: "该服务器已在本面板中运行。",
     NOT_MANAGED: "该服务器未由本面板启动。",
     DEPLOY_IN_PROGRESS: "已有部署任务进行中。",
+    props: "属性配置",
+    propsTitle: "server.properties",
+    propsFilter: "筛选键名…",
+    save: "保存", close: "关闭",
+    saved: "已保存。",
+    propsFail: "属性读取失败。",
+    NO_PROPERTIES: "找不到 server.properties。",
+    EDIT_RUNNING: "请先停止服务器再编辑属性。",
+    modsTitle: "Mod 与内容下载",
+    modsSearchPh: "搜索 CurseForge / Modrinth…（支持中文名）",
+    modsSearch: "搜索",
+    type_mod: "Mod", type_resourcepack: "资源包", type_shader: "光影", type_datapack: "数据包",
+    loaderLabel: "加载器",
+    modsNeedServer: "先选择一台服务器——内容将装到它的目录。",
+    modsTarget: "目标:{0}",
+    modsSearching: "搜索中…",
+    modsNoResult: "没有结果。",
+    hotTitle: "热门{0} · 按下载量排序",
+    modsInstalling: "解析依赖并下载中…",
+    modsDone: "已装 {0} 个文件 · 跳过 {1} · 失败 {2}。重启服务器后生效。",
+    modsFailList: "失败:{0}",
+    install: "安装",
+    wikiLink: "mc百科",
+    MODS_BUSY: "已有 Mod 安装任务进行中。",
+    BAD_TYPE: "未知的内容类型。",
+    hostMem: "内存 {0}/{1}", hostDisk: "磁盘 {0}/{1}GB",
+    settingsTitle: "设置",
+    setMemory: "服务端内存(MB)",
+    setJvm: "额外 JVM 参数(空格分隔)",
+    setJvmPh: "例如 -XX:+UseG1GC -XX:MaxGCPauseMillis=50",
+    setSpeed: "下载限速(KB/s,0 = 不限)",
+    setDeployDir: "服务端部署根目录",
+    setDeployDirPh: "留空 = {游戏目录}/servers",
+    detailTitle: "服务器详情",
+    detailType: "游戏/类型", detailPort: "端口", detailEula: "EULA",
+    detailStatus: "状态", detailPid: "进程 PID", detailDir: "目录",
+    playersOnline: "在线玩家:{0} / {1}",
+    playersUnknown: "在线人数未知(未运行或非 MC 端口)",
+    verTitle: "选择版本",
+    verInstall: "安装所选",
+    verNone: "没有兼容文件。",
     modpackFrom: "…或从 CurseForge 整合包一键部署（使用上方版本与 EULA）",
     deployPackBtn: "整合包一键部署服务器",
     langBtn: "English"
@@ -221,21 +474,61 @@ function errMsg(data) {
   return data.error || "unknown error";
 }
 
-// ==================== 版本下拉 ====================
+// ==================== 版本下拉(系列→版本级联) ====================
+let versionGroups = {};   // 系列 label -> 版本数组(新在前)
+const ANCIENT = 'ancient';
+
+/** MC 版本 → 系列名:1.21.1→"1.21"、1.21→"1.21"(新版号)26.3→"26.3";1.10 以前归远古。 */
+function seriesOf(id) {
+  const p = id.split('.');
+  if (p[0] === '1' && p.length >= 2) {
+    const major = parseInt(p[1]);
+    if (!isNaN(major) && major < 10) return ANCIENT;
+    return '1.' + p[1];
+  }
+  return p.length >= 2 ? p[0] + '.' + p[1] : id; // 26.x 新版号取前两段(26.1.2 → 26.1)
+}
+
 async function loadVersions() {
+  const seriesSel = document.getElementById('mcSeries');
   const sel = document.getElementById('mc');
-  sel.innerHTML = '<option>' + t('versionsLoading') + '</option>';
+  seriesSel.innerHTML = '<option>' + t('versionsLoading') + '</option>';
+  sel.innerHTML = '';
   try {
     const data = await api('/api/versions');
-    sel.innerHTML = '';
-    for (const v of data.versions) {
-      const opt = document.createElement('option');
-      opt.value = v.id;
-      opt.textContent = v.id + '   ' + v.date;
-      sel.appendChild(opt);
+    versionGroups = {};
+    for (const v of (data.versions || [])) {
+      const g = seriesOf(v.id);
+      if (!versionGroups[g]) versionGroups[g] = [];
+      versionGroups[g].push(v);
     }
+    // 系列按首个版本(最新)排序,远古固定最后
+    const labels = Object.keys(versionGroups).sort((a, b) =>
+      a === ANCIENT ? 1 : b === ANCIENT ? -1 :
+      (versionGroups[b][0].id > versionGroups[a][0].id ? 1 : -1));
+    seriesSel.innerHTML = '';
+    for (const l of labels) {
+      const opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = l === ANCIENT ? t('ancientSeries') : t('seriesLabel', l)
+        + ' (' + versionGroups[l].length + ')';
+      seriesSel.appendChild(opt);
+    }
+    fillVersions();
   } catch (e) {
-    sel.innerHTML = '<option>' + t('versionsFail') + '</option>';
+    seriesSel.innerHTML = '<option>' + t('versionsFail') + '</option>';
+  }
+}
+
+function fillVersions() {
+  const l = document.getElementById('mcSeries').value;
+  const sel = document.getElementById('mc');
+  sel.innerHTML = '';
+  for (const v of (versionGroups[l] || [])) {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.id + '   ' + v.date;
+    sel.appendChild(opt);
   }
 }
 
@@ -255,6 +548,13 @@ async function loadServers() {
     else badge = '<span class="badge b-stop">' + t('status_stopped') + '</span>';
     div.innerHTML = '<div class="name">' + s.name + badge + '</div>'
       + '<div class="muted">' + t(s.eula ? 'portEula' : 'portNoEula', s.port) + '</div>';
+    const infoBtn = document.createElement('button');
+    infoBtn.className = 'server-info-btn';
+    infoBtn.textContent = 'ⓘ';
+    infoBtn.title = t('detailTitle');
+    infoBtn.setAttribute('aria-label', t('detailTitle'));
+    infoBtn.onclick = (ev) => { ev.stopPropagation(); openDetail(s.dir, s.name); };
+    div.appendChild(infoBtn);
     div.onclick = () => selectServer(s);
     box.appendChild(div);
   }
@@ -273,6 +573,13 @@ function selectServer(s) {
   pollTimer = setInterval(pollLogs, 1000);
   pollLogs();
   loadServers();
+  updateModTarget();
+  if (hotMode) setModModeLabel();
+  // 图标按钮的悬停提示跟随语言
+  document.querySelectorAll('#modList [data-title-key]').forEach(el => {
+    el.title = t(el.dataset.titleKey);
+    el.setAttribute('aria-label', t(el.dataset.titleKey));
+  });
 }
 
 async function pollLogs() {
@@ -303,7 +610,7 @@ async function pollLogs() {
 // ==================== 操作 ====================
 async function doStart() {
   if (!selected) return;
-  const r = await api('/api/start', {dir: selected, memory: 4096});
+  const r = await api('/api/start', {dir: selected});
   if (r.error) {
     const box = document.getElementById('log');
     box.innerHTML += '<div class="warn">' + errMsg(r) + '</div>';
@@ -359,6 +666,363 @@ async function sendCmd() {
   input.value = '';
 }
 
+// ==================== server.properties 编辑 ====================
+async function openProps() {
+  if (!selected) return;
+  document.getElementById('propsName').textContent = '— ' + selected.split(/[\\/]/).pop();
+  document.getElementById('propsMsg').textContent = '';
+  const data = await api('/api/props?dir=' + encodeURIComponent(selected));
+  if (data.error) {
+    document.getElementById('propsMsg').textContent = errMsg(data);
+    return;
+  }
+  renderProps(data.props);
+  document.getElementById('propsOverlay').classList.add('open');
+}
+
+function renderProps(props) {
+  const grid = document.getElementById('propsGrid');
+  grid.innerHTML = '';
+  for (const p of props) {
+    const row = document.createElement('div');
+    row.className = 'props-row';
+    row.dataset.key = p.k;
+    const key = document.createElement('div');
+    key.className = 'props-key';
+    key.textContent = p.k;
+    row.appendChild(key);
+    let input;
+    if (p.v === 'true' || p.v === 'false') {
+      // 布尔项渲染为下拉,避免手输拼写错误
+      input = document.createElement('select');
+      input.className = 'props-val';
+      for (const b of ['true', 'false']) {
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = b;
+        if (b === p.v) opt.selected = true;
+        input.appendChild(opt);
+      }
+    } else {
+      input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'props-val';
+      input.value = p.v;
+    }
+    row.appendChild(input);
+    grid.appendChild(row);
+  }
+  filterProps();
+}
+
+function filterProps() {
+  const q = document.getElementById('propsFilter').value.trim().toLowerCase();
+  document.querySelectorAll('#propsGrid .props-row').forEach(r => {
+    r.classList.toggle('hide', !!q && !r.dataset.key.toLowerCase().includes(q));
+  });
+}
+
+async function saveProps() {
+  const props = {};
+  document.querySelectorAll('#propsGrid .props-row').forEach(r => {
+    props[r.dataset.key] = r.querySelector('.props-val').value;
+  });
+  const msg = document.getElementById('propsMsg');
+  const r = await api('/api/props', {dir: selected, props});
+  msg.textContent = r.error ? errMsg(r) : t('saved');
+}
+
+function closeProps() {
+  document.getElementById('propsOverlay').classList.remove('open');
+}
+
+// ==================== 控制台小窗 ====================
+function toggleConsole() {
+  const card = document.getElementById('consoleCard');
+  card.classList.toggle('collapsed');
+  if (!card.classList.contains('collapsed')) pollLogs();
+}
+
+// ==================== Mods 下载 ====================
+let modResults = [], wikiResolveSeq = 0, hotMode = true;
+
+// 行内图标按钮(随主题 currentColor 变色;title 走 i18n)
+const ICON_INSTALL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+const ICON_WIKI = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>';
+
+function updateModTarget() {
+  const el = document.getElementById('modTarget');
+  if (!selected) { el.textContent = t('modsNeedServer'); return; }
+  el.textContent = t('modsTarget', selected.split(/[\\/]/).pop());
+}
+
+function onModFilterChange() {
+  const isMod = document.getElementById('modType').value === 'mod';
+  document.getElementById('modLoader').style.display = isMod ? '' : 'none';
+  if (!document.getElementById('modQuery').value.trim()) loadHotMods();
+}
+
+function setModModeLabel() {
+  const el = document.getElementById('modMode');
+  const type = document.getElementById('modType').value;
+  el.dataset.key = 'hotTitle';
+  el.dataset.arg = t('type_' + type);
+  el.textContent = hotMode ? t('hotTitle', t('type_' + type)) : '';
+}
+
+async function searchMods() {
+  const q = document.getElementById('modQuery').value.trim();
+  const type = document.getElementById('modType').value;
+  const source = document.getElementById('modSource').value;
+  hotMode = !q;
+  setModModeLabel();
+  await fetchMods(q, type, source);
+}
+
+async function loadHotMods() {
+  hotMode = true;
+  setModModeLabel();
+  const type = document.getElementById('modType').value;
+  const source = document.getElementById('modSource').value;
+  await fetchMods('', type, source);
+}
+
+let fetchSeq = 0;
+async function fetchMods(query, type, source) {
+  const mySeq = ++fetchSeq;
+  const list = document.getElementById('modList');
+  list.innerHTML = '<div class="muted" style="padding:8px 10px">' + t('modsSearching') + '</div>';
+  const data = await api('/api/mods/search?query=' + encodeURIComponent(query) + '&source=' + source + '&type=' + type);
+  if (mySeq !== fetchSeq) return;   // 已有更新的搜索,丢弃过期响应(如迟迟未归的热门榜)
+  if (data.error) { list.innerHTML = '<div class="muted" style="padding:8px 10px">' + errMsg(data) + '</div>'; return; }
+  modResults = data.results || [];
+  if (!modResults.length) {
+    list.innerHTML = '<div class="muted" style="padding:8px 10px">' + t('modsNoResult') + '</div>';
+    return;
+  }
+  list.innerHTML = '';
+  modResults.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'mod-item';
+    if (m.icon) {
+      const img = document.createElement('img');
+      img.className = 'mod-icon';
+      img.loading = 'lazy';
+      img.src = m.icon;
+      img.onerror = () => img.remove();
+      row.appendChild(img);
+    }
+    const main = document.createElement('div');
+    main.className = 'mod-main';
+    main.innerHTML = '<div class="mod-name">' + escapeHtml(m.name)
+      + ' <span class="mod-dl">↓ ' + Number(m.downloads).toLocaleString() + '</span></div>'
+      + '<div class="mod-sum" title="' + escapeHtml(m.summary || '') + '">' + escapeHtml(m.summary || '') + '</div>';
+    const actions = document.createElement('div');
+    actions.className = 'mod-actions';
+    if (m.wikiUrl) {
+      const wiki = document.createElement('a');
+      wiki.className = 'wiki-link icon-btn';
+      wiki.href = m.wikiUrl;
+      wiki.target = '_blank';
+      wiki.rel = 'noopener';
+      wiki.innerHTML = ICON_WIKI;
+      wiki.title = t('wikiLink');
+      wiki.setAttribute('aria-label', t('wikiLink'));
+      wiki.dataset.titleKey = 'wikiLink';
+      wiki.dataset.modName = m.name;
+      actions.appendChild(wiki);
+    }
+    const btn = document.createElement('button');
+    btn.className = 'ghost icon-btn';
+    btn.innerHTML = ICON_INSTALL;
+    btn.title = t('install');
+    btn.setAttribute('aria-label', t('install'));
+    btn.dataset.titleKey = 'install';
+    btn.onclick = () => openVersions(i, btn);
+    actions.appendChild(btn);
+    row.appendChild(main);
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  // 后台把前 10 条 mc百科链接升级为词条直达(顺序请求防限流;失败保持搜索页回退)
+  const seq = ++wikiResolveSeq;
+  (async () => {
+    for (let j = 0; j < Math.min(10, modResults.length); j++) {
+      if (seq !== wikiResolveSeq) return;
+      const m = modResults[j];
+      if (!m.wikiUrl) continue;
+      try {
+        const r = await api('/api/mods/mcmod?name=' + encodeURIComponent(m.name));
+        if (r.url && seq === wikiResolveSeq) {
+          m.wikiUrl = r.url;
+          const link = document.querySelectorAll('#modList .wiki-link')[j];
+          if (link) link.href = r.url;
+        }
+      } catch (e) { /* 保持搜索页回退 */ }
+    }
+  })();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ==================== 版本选择 ====================
+let verCtx = null; // {index, btn}
+async function openVersions(i, btn) {
+  if (!selected) { document.getElementById('modMsg').textContent = t('modsNeedServer'); return; }
+  verCtx = {m: modResults[i], btn};
+  document.getElementById('verName').textContent = '— ' + modResults[i].name;
+  document.getElementById('verMsg').textContent = '';
+  const list = document.getElementById('verList');
+  list.innerHTML = '<div class="muted" style="padding:8px 10px">' + t('modsSearching') + '</div>';
+  document.getElementById('verOverlay').classList.add('open');
+  const type = document.getElementById('modType').value;
+  const q = 'dir=' + encodeURIComponent(selected) + '&source=' + modResults[i].source
+    + '&type=' + type + '&id=' + encodeURIComponent(modResults[i].id)
+    + '&loader=' + (type === 'mod' ? document.getElementById('modLoader').value : '');
+  const d = await api('/api/mods/files?' + q);
+  if (d.error) { list.innerHTML = '<div class="muted" style="padding:8px 10px">' + errMsg(d) + '</div>'; return; }
+  if (!d.files.length) { list.innerHTML = '<div class="muted" style="padding:8px 10px">' + t('verNone') + '</div>'; return; }
+  list.innerHTML = '';
+  d.files.forEach((f, fi) => {
+    const row = document.createElement('label');
+    row.className = 'ver-row';
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'verSel';
+    radio.value = f.fileId;
+    if (fi === 0) radio.checked = true;   // 默认最新
+    const main = document.createElement('div');
+    main.className = 'ver-main';
+    const sizeMb = f.size > 0 ? (f.size / 1048576).toFixed(1) + 'MB' : '';
+    const vers = (f.versions || []).slice(0, 5).join(', ');
+    main.innerHTML = '<div class="ver-name">' + escapeHtml(f.name) + '</div>'
+      + '<div class="ver-meta">' + escapeHtml((f.date || '').slice(0, 10))
+      + (sizeMb ? ' · ' + sizeMb : '') + (vers ? ' · ' + escapeHtml(vers) : '') + '</div>';
+    row.appendChild(radio);
+    row.appendChild(main);
+    list.appendChild(row);
+  });
+}
+function installVersion() {
+  if (!verCtx) return;
+  const sel = document.querySelector('#verList input[name=verSel]:checked');
+  const fileId = sel ? sel.value : null;
+  const ctx = verCtx;
+  closeVersions();
+  installMod(ctx.m, ctx.btn, fileId);
+}
+function closeVersions() {
+  document.getElementById('verOverlay').classList.remove('open');
+}
+
+async function installMod(m, btn, fileId) {
+  if (!selected) { document.getElementById('modMsg').textContent = t('modsNeedServer'); return; }
+  const type = document.getElementById('modType').value;
+  const body = {dir: selected, source: m.source, type: type, id: m.id,
+                loader: type === 'mod' ? document.getElementById('modLoader').value : null};
+  if (fileId) body.fileId = fileId;
+  const msg = document.getElementById('modMsg'), prog = document.getElementById('modProg'), bar = document.getElementById('modBar');
+  btn.disabled = true;
+  prog.style.display = 'block';
+  msg.textContent = t('modsInstalling');
+  const res = await api('/api/mods/install', body);
+  if (res.error) {
+    msg.textContent = errMsg(res);
+    prog.style.display = 'none';
+    btn.disabled = false;
+    return;
+  }
+  const timer = setInterval(async () => {
+    const st = await api('/api/mods/status');
+    if (st.error) { clearInterval(timer); msg.textContent = errMsg(st); prog.style.display = 'none'; btn.disabled = false; return; }
+    bar.style.width = Math.round((st.percent || 0) * 100) + '%';
+    if (st.done) {
+      clearInterval(timer);
+      prog.style.display = 'none';
+      btn.disabled = false;
+      msg.textContent = t('modsDone', (st.installed || []).length, (st.skipped || []).length, (st.failed || []).length)
+        + ((st.failed || []).length ? ' ' + t('modsFailList', st.failed.join(', ')) : '');
+    }
+  }, 800);
+}
+
+// ==================== 主机资源 ====================
+function fmtMem(mb) { return mb >= 1024 ? (mb / 1024).toFixed(1) + 'GB' : mb + 'MB'; }
+async function pollHost() {
+  try {
+    const d = await api('/api/host');
+    const el = document.getElementById('hostStats');
+    if (!d || d.cpu < 0) { el.textContent = ''; return; }
+    el.textContent = 'CPU ' + d.cpu + '% · ' + t('hostMem', fmtMem(d.memUsedMb), fmtMem(d.memTotalMb))
+      + ' · ' + t('hostDisk', d.diskUsedGb, d.diskTotalGb);
+  } catch (e) { /* 面板暂不可用,下轮再试 */ }
+}
+
+// ==================== 设置 ====================
+async function openSettings() {
+  const d = await api('/api/settings');
+  document.getElementById('setMemory').value = d.serverMemoryMb;
+  document.getElementById('setJvm').value = d.serverJvmArgs;
+  document.getElementById('setSpeed').value = d.downloadSpeedLimit;
+  document.getElementById('setDeployDir').value = d.serverDeployDir;
+  document.getElementById('setMsg').textContent = '';
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+async function saveSettings() {
+  const body = {
+    serverMemoryMb: parseInt(document.getElementById('setMemory').value) || 4096,
+    serverJvmArgs: document.getElementById('setJvm').value,
+    downloadSpeedLimit: parseInt(document.getElementById('setSpeed').value) || 0,
+    serverDeployDir: document.getElementById('setDeployDir').value.trim()
+  };
+  const r = await api('/api/settings', body);
+  document.getElementById('setMsg').textContent = r.error ? errMsg(r) : t('saved');
+  if (!r.error) loadServers();
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+// ==================== 服务器详情 ====================
+let detailTimer = null, detailDir = null;
+function openDetail(dir, name) {
+  detailDir = dir;
+  document.getElementById('detailName').textContent = '— ' + name;
+  document.getElementById('detailOverlay').classList.add('open');
+  refreshDetail();
+  if (detailTimer) clearInterval(detailTimer);
+  detailTimer = setInterval(refreshDetail, 3000);
+}
+async function refreshDetail() {
+  const overlay = document.getElementById('detailOverlay');
+  if (!detailDir || !overlay.classList.contains('open')) return;
+  const d = await api('/api/server-info?dir=' + encodeURIComponent(detailDir));
+  if (d.error) { document.getElementById('detailGrid').innerHTML = '<div></div><div class="err-text">' + errMsg(d) + '</div>'; return; }
+  const status = d.running ? t('status_running')
+    : (d.external ? t('status_external')
+    : (d.exitCode !== undefined ? t('status_exited', d.exitCode) : t('status_stopped')));
+  const rows = [
+    [t('detailType'), (d.mc || '?') + (d.type ? ' · ' + d.type.toUpperCase() : '')],
+    [t('detailPort'), d.port],
+    [t('detailEula'), d.eula ? '✓' : '✗'],
+    [t('detailStatus'), status],
+    [t('detailPid'), d.pid !== undefined ? d.pid : '—'],
+    [t('detailDir'), d.dir],
+  ];
+  if (d.motd) rows.push(['MOTD', d.motd]);
+  if (d.serverVersion) rows.push(['Version', d.serverVersion]);
+  document.getElementById('detailGrid').innerHTML = rows
+    .map(r => '<div class="k">' + escapeHtml(r[0]) + '</div><div>' + escapeHtml(String(r[1])) + '</div>').join('');
+  document.getElementById('detailPlayers').textContent =
+    d.playersOnline !== undefined ? t('playersOnline', d.playersOnline, d.playersMax) : t('playersUnknown');
+}
+function closeDetail() {
+  document.getElementById('detailOverlay').classList.remove('open');
+  if (detailTimer) clearInterval(detailTimer);
+  detailDir = null;
+}
+
 // ==================== 部署 ====================
 async function deployModpack() {
   const btn = event.target;
@@ -410,9 +1074,14 @@ async function deploy() {
 }
 
 // ==================== 启动 ====================
+applyTheme();
 applyLang();
 loadServers();
 loadVersions();
+updateModTarget();
+onModFilterChange();
+pollHost();
+setInterval(pollHost, 3000);
 setInterval(loadServers, 3000);
 </script>
 </body>

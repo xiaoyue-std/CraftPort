@@ -38,6 +38,46 @@ public final class Downloader {
 
     public record DownloadItem(String url, Path dest, String sha1, long size, String name) {}
 
+    /**
+     * 全局下载限速令牌桶（设置 DownloadSpeedLimit，KB/s，0 = 不限）。
+     * 桶容量为一个周期的额度；所有下载线程共享，按实际读取量扣减。
+     */
+    final class SpeedLimiter {
+        private static final Object LOCK = new Object();
+        private static double tokens;
+        private static long lastRefill;
+
+        public static long limitBytesPerSec() {
+            return pcl.base.Config.getInt(pcl.base.Config.DOWNLOAD_SPEED_LIMIT, 0) * 1024L;
+        }
+
+        public static void take(int bytes) throws IOException {
+            long limit = limitBytesPerSec();
+            if (limit <= 0) return;
+            synchronized (LOCK) {
+                long now = System.nanoTime();
+                if (lastRefill == 0) lastRefill = now;
+                tokens += (now - lastRefill) / 1e9 * limit;
+                lastRefill = now;
+                if (tokens > limit) tokens = limit;
+                if (tokens >= bytes) {
+                    tokens -= bytes;
+                    return;
+                }
+                long waitNanos = (long) ((bytes - tokens) / limit * 1e9);
+                tokens = 0;
+                if (waitNanos > 0) {
+                    try {
+                        java.util.concurrent.TimeUnit.NANOSECONDS.sleep(waitNanos);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("下载被中断", e);
+                    }
+                }
+            }
+        }
+    }
+
     private Downloader() {}
 
     /** 下载单个文件（含镜像切换与重试），sha1/size 传 null 则跳过对应校验。 */
@@ -112,6 +152,7 @@ public final class Downloader {
             int n;
             long lastData = System.nanoTime();
             while ((n = in.read(buf)) != -1) {
+                SpeedLimiter.take(n);
                 out.write(buf, 0, n);
                 done += n;
                 lastData = System.nanoTime();
@@ -148,33 +189,40 @@ public final class Downloader {
             List<java.util.concurrent.Future<?>> futures = new ArrayList<>();
             for (int idx = 0; idx < segments; idx++) {
                 final int segIdx = idx;
+                final long segStart = idx * chunk;
+                final long segEnd = (idx == segments - 1) ? total - 1 : (segStart + chunk - 1);
                 futures.add(segmentPool.submit(() -> {
-                    long start = segIdx * chunk;
-                    long end = (segIdx == segments - 1) ? total - 1 : (start + chunk - 1);
-                    byte[] data;
-                    try {
-                        java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
-                                .header("Range", "bytes=" + start + "-" + end)
-                                .header("User-Agent", "CraftPort/1.0")
-                                .timeout(Duration.ofSeconds(60))
-                                .GET().build();
-                        data = Net.client().send(req, java.net.http.HttpResponse.BodyHandlers.ofByteArray()).body();
-                    } catch (IOException | InterruptedException e) {
+                    // 流式写入限速下的分片（也避免整个分片驻留内存）
+                    try (InputStream in = Net.client().send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(url))
+                                    .header("Range", "bytes=" + segStart + "-" + segEnd)
+                                    .header("User-Agent", "CraftPort/1.0")
+                                    .timeout(Duration.ofSeconds(60))
+                                    .GET().build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofInputStream()).body();
+                         var ch = java.nio.channels.FileChannel.open(tmp,
+                                 StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+                        byte[] buf = new byte[64 * 1024];
+                        long pos = segStart;
+                        int n;
+                        while ((n = in.read(buf)) != -1) {
+                            SpeedLimiter.take(n);
+                            synchronized (tmp) {
+                                ch.write(java.nio.ByteBuffer.wrap(buf, 0, n), pos);
+                            }
+                            pos += n;
+                            long doneNow = downloaded.addAndGet(n);
+                            if (progress != null) progress.accept((double) doneNow / total, url);
+                        }
+                        if (pos != segEnd + 1) {
+                            throw new IOException("分片长度不符: " + segIdx + " (" + pos + "/" + (segEnd + 1) + ")");
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
-                    if (data == null || data.length != end - start + 1) {
-                        throw new RuntimeException("分片长度不符: " + segIdx);
-                    }
-                    synchronized (tmp) {
-                        try (var ch = java.nio.channels.FileChannel.open(tmp,
-                                StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
-                            ch.write(java.nio.ByteBuffer.wrap(data), start);
-                        } catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                    downloaded.addAndGet(data.length);
-                    if (progress != null) progress.accept((double) downloaded.get() / total, url);
                 }));
             }
             for (var f : futures) {

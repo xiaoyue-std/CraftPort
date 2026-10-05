@@ -17,16 +17,18 @@ import java.util.List;
  */
 public final class Modrinth {
 
-    private static final String API = "https://api.modrinth.com/v2";
+    static final String API = "https://api.modrinth.com/v2";
 
-    /** 搜索结果条目。 */
-    public record ModInfo(String projectId, String slug, String title, long downloads, String description) {
+    /** 搜索结果条目（icon 为图标 URL，可能为空）。 */
+    public record ModInfo(String projectId, String slug, String title, long downloads, String description,
+                          String icon) {
         @Override
         public String toString() { return title + "   [↓ " + String.format("%,d", downloads) + "]"; }
     }
 
-    /** 模组文件条目（primary 文件）。 */
-    public record FileInfo(String id, String name, String versionNumber, String date, long size, String url) {
+    /** 模组文件条目（primary 文件；projectId 与 requiredProjectIds 供依赖补全用）。 */
+    public record FileInfo(String id, String name, String versionNumber, String date, long size, String url,
+                           String projectId, List<String> requiredProjectIds) {
         @Override
         public String toString() {
             String d = date.length() >= 10 ? date.substring(0, 10) : date;
@@ -49,8 +51,10 @@ public final class Modrinth {
     public static List<ModInfo> search(String query, String projectType) throws IOException {
         String facets = "%5B%5B%22project_type%3A" + URLEncoder.encode(projectType, StandardCharsets.UTF_8)
                 .replace("+", "%20") + "%22%5D%5D";
-        String url = API + "/search?query=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
-                + "&limit=20&facets=" + facets;
+        // 空关键词 = 热门榜单,按下载量排序;有关键词时用默认相关度
+        String index = (query == null || query.isBlank()) ? "&index=downloads" : "";
+        String url = API + "/search?query=" + URLEncoder.encode(query == null ? "" : query, StandardCharsets.UTF_8)
+                + "&limit=20" + index + "&facets=" + facets;
         var root = Json.parse(pcl.net.Net.get(url));
         List<ModInfo> list = new ArrayList<>();
         if (root instanceof com.google.gson.JsonObject o && o.has("hits")) {
@@ -60,7 +64,8 @@ public final class Modrinth {
                 list.add(new ModInfo(Json.str(hit, "project_id", ""),
                         Json.str(hit, "slug", ""), Json.str(hit, "title", ""),
                         Json.longOf(hit, "downloads", 0),
-                        Json.str(hit, "description", "")));
+                        Json.str(hit, "description", ""),
+                        Json.str(hit, "icon_url", "")));
             }
         }
         return list;
@@ -95,9 +100,21 @@ public final class Modrinth {
                     size = Json.longOf(chosen, "size", 0);
                 }
                 if (fileUrl.isBlank()) continue;
+                List<String> required = new ArrayList<>();
+                if (v.has("dependencies") && v.get("dependencies").isJsonArray()) {
+                    for (var de : v.getAsJsonArray("dependencies")) {
+                        if (!de.isJsonObject()) continue;
+                        var d = de.getAsJsonObject();
+                        if ("required".equals(Json.str(d, "dependency_type", ""))
+                                && !Json.str(d, "project_id", "").isBlank()) {
+                            required.add(Json.str(d, "project_id", ""));
+                        }
+                    }
+                }
                 list.add(new FileInfo(Json.str(v, "id", ""), fileName,
                         Json.str(v, "version_number", ""),
-                        Json.str(v, "date_published", ""), size, fileUrl));
+                        Json.str(v, "date_published", ""), size, fileUrl,
+                        Json.str(v, "project_id", ""), List.copyOf(required)));
             }
         }
         return list.subList(0, Math.min(30, list.size()));

@@ -27,15 +27,15 @@ public final class CurseForge {
     private static final long GAME_ID = 432; // Minecraft: Java Edition
     private static final long CLASS_ID = 6;  // Mods 分类
 
-    /** 搜索结果条目。 */
-    public record ModInfo(long id, String name, String slug, String summary, long downloads) {
+    /** 搜索结果条目（icon 为缩略图 URL，可能为空）。 */
+    public record ModInfo(long id, String name, String slug, String summary, long downloads, String icon) {
         @Override
         public String toString() { return name + "   [↓ " + String.format("%,d", downloads) + "]"; }
     }
 
-    /** 模组文件条目。 */
-    public record FileInfo(long id, String name, String displayName, String date, long size,
-                           List<String> gameVersions) {
+    /** 模组文件条目（modId 与 requiredFileIds 供依赖补全用；relationType=3 才是 required）。 */
+    public record FileInfo(long id, long modId, String name, String displayName, String date, long size,
+                           List<String> gameVersions, List<Long> requiredFileIds) {
         @Override
         public String toString() {
             String d = date.length() >= 10 ? date.substring(0, 10) : date;
@@ -45,6 +45,28 @@ public final class CurseForge {
     }
 
     private CurseForge() {}
+
+    /** 统一解析单个文件 JSON（含 modId 与 required 依赖 fileId 列表）。 */
+    private static FileInfo parseFile(JsonObject o) {
+        List<String> versions = new ArrayList<>();
+        if (o.has("gameVersions") && o.get("gameVersions").isJsonArray()) {
+            for (var v : o.getAsJsonArray("gameVersions")) versions.add(v.getAsString());
+        }
+        List<Long> required = new ArrayList<>();
+        if (o.has("dependencies") && o.get("dependencies").isJsonArray()) {
+            for (var d : o.getAsJsonArray("dependencies")) {
+                if (!d.isJsonObject()) continue;
+                var dep = d.getAsJsonObject();
+                if (Json.longOf(dep, "relationType", 0) == 3) required.add(Json.longOf(dep, "id", 0L));
+            }
+        }
+        return new FileInfo(Json.longOf(o, "id", 0), Json.longOf(o, "modId", 0),
+                Json.str(o, "fileName", ""),
+                Json.str(o, "displayName", Json.str(o, "fileName", "")),
+                Json.str(o, "fileDate", ""),
+                Json.longOf(o, "fileLength", 0),
+                List.copyOf(versions), List.copyOf(required));
+    }
 
     /** CurseForge 内容分类（参考 PCL2 下载页：Mod/整合包/资源包/光影）。 */
     public enum Category {
@@ -63,11 +85,19 @@ public final class CurseForge {
         return search(query, Category.MODPACK);
     }
 
-    /** 按分类搜索。 */
+    /** 按分类搜索（默认 30 条）。 */
     public static List<ModInfo> search(String query, Category category) throws IOException {
+        return search(query, category, 30);
+    }
+
+    /**
+     * 按分类搜索。空关键词 = 热门榜单（sortField=2 下载量降序），此时调用方通常给更小的 pageSize
+     * ——镜像对未缓存的大响应限速（~30KB/s），30 条约 770KB 要 25 秒，15 条可减半等待。
+     */
+    public static List<ModInfo> search(String query, Category category, int pageSize) throws IOException {
         String url = API + "/v1/mods/search?gameId=" + GAME_ID + "&classId=" + category.classId
-                + "&searchFilter=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
-                + "&sortField=2&sortOrder=desc&pageSize=30";
+                + "&searchFilter=" + URLEncoder.encode(query == null ? "" : query, StandardCharsets.UTF_8)
+                + "&sortField=2&sortOrder=desc&pageSize=" + pageSize;
         JsonObject resp = pcl.net.Net.getJson(url);
         List<ModInfo> list = new ArrayList<>();
         if (resp.has("data") && resp.get("data").isJsonArray()) {
@@ -76,10 +106,20 @@ public final class CurseForge {
                 var o = e.getAsJsonObject();
                 list.add(new ModInfo(Json.longOf(o, "id", 0), Json.str(o, "name", ""),
                         Json.str(o, "slug", ""), Json.str(o, "summary", ""),
-                        Json.longOf(o, "downloadCount", 0)));
+                        Json.longOf(o, "downloadCount", 0), logoOf(o)));
             }
         }
         return list;
+    }
+
+    /** logo.thumbnailUrl 优先，退回 logo.url（面板结果列表显示图标用）。 */
+    private static String logoOf(JsonObject o) {
+        if (o.has("logo") && o.get("logo").isJsonObject()) {
+            var logo = o.getAsJsonObject("logo");
+            String t = Json.str(logo, "thumbnailUrl", "");
+            return !t.isBlank() ? t : Json.str(logo, "url", "");
+        }
+        return "";
     }
 
     /**
@@ -102,16 +142,7 @@ public final class CurseForge {
                     if (!e.isJsonObject()) continue;
                     var o = e.getAsJsonObject();
                     if (!Json.bool(o, "isAvailable", true)) continue;
-                    List<String> versions = new ArrayList<>();
-                    if (o.has("gameVersions") && o.get("gameVersions").isJsonArray()) {
-                        for (var v : o.getAsJsonArray("gameVersions")) versions.add(v.getAsString());
-                    }
-                    out.add(new FileInfo(Json.longOf(o, "id", 0),
-                            Json.str(o, "fileName", ""),
-                            Json.str(o, "displayName", Json.str(o, "fileName", "")),
-                            Json.str(o, "fileDate", ""),
-                            Json.longOf(o, "fileLength", 0),
-                            List.copyOf(versions)));
+                    out.add(parseFile(o));
                 }
             }
         }
@@ -173,16 +204,7 @@ public final class CurseForge {
                 if (!e.isJsonObject()) continue;
                 var o = e.getAsJsonObject();
                 if (!Json.bool(o, "isAvailable", true)) continue;
-                List<String> versions = new ArrayList<>();
-                if (o.has("gameVersions") && o.get("gameVersions").isJsonArray()) {
-                    for (var v : o.getAsJsonArray("gameVersions")) versions.add(v.getAsString());
-                }
-                list.add(new FileInfo(Json.longOf(o, "id", 0),
-                        Json.str(o, "fileName", ""),
-                        Json.str(o, "displayName", Json.str(o, "fileName", "")),
-                        Json.str(o, "fileDate", ""),
-                        Json.longOf(o, "fileLength", 0),
-                        List.copyOf(versions)));
+                list.add(parseFile(o));
             }
         }
         list.sort(Comparator.comparingLong(FileInfo::id).reversed());
