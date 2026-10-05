@@ -1,10 +1,10 @@
-import pcl.minecraft.*;
-import pcl.base.*;
+import craftport.minecraft.*;
+import craftport.base.*;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** 加载器安装全流程测试：java -cp target/PCLJ.jar LoaderTest <游戏目录> <MC版本> <fabric|optifine|forge|all> */
+/** 加载器安装全流程测试：java -cp target/CraftPort.jar LoaderTest <游戏目录> <MC版本> <fabric|optifine|forge|all> */
 public final class LoaderTest {
 
     public static void main(String[] args) throws Exception {
@@ -63,8 +63,8 @@ public final class LoaderTest {
     private static void launchAndWatch(Path mcRoot, String versionName, int watchSeconds) throws Exception {
         McVersion v = McVersion.load(mcRoot.resolve("versions").resolve(versionName), versionName);
         if (v == null) throw new IllegalStateException("版本加载失败: " + versionName);
-        String uuid = LoginService.offlineUuid("PCLJTest");
-        var login = new LoginService.LoginResult("PCLJTest", uuid, uuid, LoginService.Type.OFFLINE);
+        String uuid = LoginService.offlineUuid("CraftPortTest");
+        var login = new LoginService.LoginResult("CraftPortTest", uuid, uuid, LoginService.Type.OFFLINE);
         var opts = new ArgsBuilder.LaunchOptions(v, mcRoot, null, login,
                 v.gameDirectory(mcRoot, true), v.nativesDir(), "", 854, 480, false, null);
         long t0 = System.currentTimeMillis();

@@ -42,7 +42,7 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
 ```bash
 export JAVA_HOME="D:/Environment/JDK/jdk-21.0.10+7"
 MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未装全局
-"$MVN" -q package -DskipTests        # 产物: target/CraftPort.jar + pcl-java-1.0.0-cli.jar
+"$MVN" -q package -DskipTests        # 产物: target/CraftPort.jar + CraftPort-1.0.0-cli.jar
 ```
 
 ## 验证手段（改完必须验）

@@ -55,7 +55,7 @@ run.cmd                    # Windows
 
 ```bash
 java -jar target/CraftPort.jar          # GUI（Windows / Linux / macOS）
-java -jar target/pcl-java-1.0.0-cli.jar # CLI（或 ./run-cli.sh、run-cli.cmd、java -jar target/CraftPort.jar cli ...）
+java -jar target/CraftPort-1.0.0-cli.jar # CLI（或 ./run-cli.sh、run-cli.cmd、java -jar target/CraftPort.jar cli ...）
 ```
 
 ---

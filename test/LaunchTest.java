@@ -1,9 +1,9 @@
-import pcl.minecraft.*;
-import pcl.base.*;
+import craftport.minecraft.*;
+import craftport.base.*;
 
 import java.nio.file.Path;
 
-/** 端到端启动测试（手动运行）：java -cp target/PCLJ.jar LaunchTest <游戏目录> <版本名> */
+/** 端到端启动测试（手动运行）：java -cp target/CraftPort.jar LaunchTest <游戏目录> <版本名> */
 public final class LaunchTest {
 
     public static void main(String[] args) throws Exception {
@@ -12,8 +12,8 @@ public final class LaunchTest {
         System.out.println("TESTDIR: " + tmp);
 
         McVersion v = McVersion.load(tmp.resolve("versions").resolve(versionName), versionName);
-        String uuid = LoginService.offlineUuid("PCLJTest");
-        LoginService.LoginResult login = new LoginService.LoginResult("PCLJTest", uuid, uuid, LoginService.Type.OFFLINE);
+        String uuid = LoginService.offlineUuid("CraftPortTest");
+        LoginService.LoginResult login = new LoginService.LoginResult("CraftPortTest", uuid, uuid, LoginService.Type.OFFLINE);
         ArgsBuilder.LaunchOptions opts = new ArgsBuilder.LaunchOptions(v, tmp, null, login,
                 v.gameDirectory(tmp, true), v.nativesDir(), "", 854, 480, false, null);
 
