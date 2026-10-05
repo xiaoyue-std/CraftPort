@@ -1,14 +1,9 @@
 @echo off
-rem CraftPort 运行脚本（Windows）
-rem 用法: run.cmd [jar路径]
+rem CraftPort CLI launcher (Windows)
 setlocal
-
-for /f "delims=" %%f in ('dir /b "%~dp0target\CraftPort.jar" 2^>nul') do set JAR=%~dp0target\%%f
-if not "%~1"=="" set JAR=%~1
-
+set JAR=%~dp0target\CraftPort.jar
 if not exist "%JAR%" (
-    echo 未找到 %JAR%，请先执行: mvn package
+    echo Not found: %JAR% - run "mvn package" first.
     exit /b 1
 )
-
 java -jar "%JAR%" %*
