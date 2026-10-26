@@ -1,9 +1,11 @@
 package craftport.cli;
 
+import craftport.base.BuildInfo;
 import craftport.base.Config;
 import craftport.base.Log;
 import craftport.base.Os;
 import craftport.base.Task;
+import craftport.base.Updater;
 import craftport.minecraft.ArgsBuilder;
 import craftport.minecraft.CurseForge;
 import craftport.minecraft.InstallService;
@@ -52,6 +54,16 @@ public final class CliMain {
         // CLI mode: core (Chinese) logs go to file only; this class prints English output
         Log.setConsoleEnabled(false);
         Log.initFile(Os.dataDir());
+        // --version：构建自检（update 用它确认新 jar 可启动）
+        if (args.length == 1 && ("--version".equals(args[0]) || "-V".equals(args[0]))) {
+            System.out.println("CraftPort " + BuildInfo.label()
+                    + (BuildInfo.built().isEmpty() ? "" : "  built " + BuildInfo.built()));
+            System.exit(0);
+        }
+        // 上一次 update 写入的新 jar 已由 run 脚本替换：打印结果并清理
+        Updater.consumePendingMarker();
+        // 有新提交时给一行提示（后台查询，不阻塞超过 3 秒）
+        UpdateNotice.checkOnStartup();
         int code;
         try {
             code = args.length == 0 ? interactive() : dispatch(args);
@@ -84,6 +96,7 @@ public final class CliMain {
                 case "dir" -> { cmdDir(rest); return 0; }
                 case "runtimes" -> { cmdRuntimes(); return 0; }
                 case "status" -> { cmdStatus(); return 0; }
+                case "update" -> { return cmdUpdate(rest); }
                 default -> {
                     System.out.println("Unknown command: " + cmd + " (try 'help')");
                     return 1;
@@ -143,6 +156,10 @@ public final class CliMain {
                   login --microsoft             Sign in with a Microsoft account (device code)
                   dir [path]                    Show or set the game (.minecraft) directory
                   runtimes                      List detected Java runtimes
+                  update [--check] [--ref r]    Check GitHub for a newer commit; without
+                                [--install-dir d]  --check, build it from source and stage
+                                                CraftPort.jar.new for the next launch
+                                                (requires a JDK; user data is untouched)
                   status                        Show current configuration
 
                 Run without arguments for an interactive menu.""".stripIndent());
@@ -536,6 +553,147 @@ public final class CliMain {
         System.out.println("Download source: " + Config.getInt(Config.TOOL_DOWNLOAD_SOURCE, 1)
                 + " (0=mirror, 1=auto, 2=official)");
         System.out.println("Data directory : " + Os.dataDir());
+        System.out.println("Version        : " + BuildInfo.label());
+    }
+
+    // ==================== Update ====================
+
+    /**
+     * update：检查 GitHub 最新提交；不带 --check 时下载源码、用 JDK 编译出新的 jar，
+     * 落位为 CraftPort.jar.new，下次启动由 run 脚本替换。用户数据不在操作范围内。
+     */
+    private static int cmdUpdate(String[] args) throws Exception {
+        Map<String, String> flags = parseFlags(args, 0);
+        String ref = flags.getOrDefault("ref", Updater.DEFAULT_REF);
+        boolean checkOnly = flags.containsKey("check");
+
+        System.out.println("Current version: " + BuildInfo.label() + "   Ref: " + ref);
+        System.out.println("Checking GitHub ...");
+        Updater.UpdateCheck check;
+        try {
+            check = Updater.check(ref);
+        } catch (Exception e) {
+            System.out.println(red("Update check failed: " + e.getMessage()));
+            return 1;
+        }
+        Updater.RemoteCommit remote = check.remote();
+        System.out.println("Latest commit  : " + (remote.sha().isEmpty() ? "(unknown)" : remote.shortSha())
+                + (remote.title().isBlank() ? "" : "  " + remote.title()));
+        if (!check.updateAvailable()) {
+            System.out.println(green("Already up to date."));
+            return 0;
+        }
+        System.out.println(yellow(BuildInfo.isDev()
+                ? "Local build has no commit info; a rebuild is available."
+                : "A newer commit is available."));
+        if (checkOnly) {
+            System.out.println("Run 'update' to build and install it.");
+            return 0;
+        }
+        if (!Updater.hasJdk()) {
+            System.out.println(red("A JDK is required (javac/jar not found). Update compiles the source locally."));
+            System.out.println("Install a JDK 21+ or run CraftPort on a machine that has one.");
+            return 1;
+        }
+
+        // 安装位置：默认当前运行的 jar 所在目录
+        Path installDir;
+        if (flags.containsKey("install-dir")) {
+            installDir = Path.of(flags.get("install-dir")).toAbsolutePath().normalize();
+        } else {
+            try {
+                installDir = Updater.currentJar().getParent();
+            } catch (Exception e) {
+                System.out.println(red(e.getMessage()));
+                System.out.println("Pass --install-dir <dir> to choose where CraftPort.jar lives.");
+                return 1;
+            }
+        }
+
+        Path work = Updater.workDir();
+        System.out.println("Downloading source (" + ref + ") ...");
+        Path sourceRoot;
+        try {
+            sourceRoot = Updater.downloadAndExtract(work, ref, remote.sha(), (p, s) -> progress(p));
+        } catch (Exception e) {
+            System.out.println(red("Source download failed: " + e.getMessage()));
+            return 1;
+        }
+        System.out.println();
+        System.out.println("Building with javac (this may take a minute) ...");
+        Path built = work.resolve("CraftPort.jar");
+        Updater.BuildResult result;
+        try {
+            result = Updater.compile(sourceRoot, built, Updater.compileClasspath(Updater.currentJar()),
+                    Updater.versionFromPom(sourceRoot), remote.sha());
+        } catch (Exception e) {
+            System.out.println(red("Build failed: " + e.getMessage()));
+            return 1;
+        }
+
+        // 自检：新 jar 必须能启动并识别出自己的提交，避免把坏包放上线
+        // （atom feed 不可用时没有 sha，build.properties 为空，跳过提交比对）
+        System.out.println("Verifying the new jar ...");
+        String expectedSha = remote.sha() == null ? "" : remote.sha();
+        if (!verifyBuiltJar(result.jar(), expectedSha)) {
+            System.out.println(red("Verification failed - the current installation was not changed."));
+            return 1;
+        }
+
+        Updater.InstallPlan plan = Updater.planInstall(result.jar(), installDir);
+        try {
+            Updater.install(result, plan);
+            Updater.writeJournal(BuildInfo.label(), remote.sha());
+        } catch (Exception e) {
+            System.out.println(red("Install failed: " + e.getMessage()));
+            return 1;
+        }
+        System.out.println(green("New jar staged: " + plan.newJar()));
+        System.out.println("  Built " + result.jar().getFileName() + " -> " + plan.newJar().getFileName()
+                + " in " + (result.elapsedMs() / 1000) + "s");
+        System.out.println("  Your config, logs, game directory and servers are untouched.");
+        System.out.println("Restart CraftPort (run.cmd / run.sh) to apply; the current jar is backed up as "
+                + plan.backupJar().getFileName() + ".");
+        return 0;
+    }
+
+    /**
+     * 用新 jar 跑一次 status 自检：status 会加载 Config（依赖 Gson），能覆盖「依赖没打进包」这类问题。
+     * 再尽力比对 build.properties 中的提交：远端源码尚未包含 --version 时跳过该步。
+     * 注意：未捕获异常时 JVM 仍可能返回 0，因此退出码与输出都要检查。
+     */
+    private static boolean verifyBuiltJar(Path jar, String expectedSha) {
+        Path javaExe = Path.of(System.getProperty("java.home"), "bin", Os.exeName("java"));
+        String status = runJar(javaExe, jar, "status");
+        if (status == null || !status.contains("Data directory")) return false;
+        if (status.contains("NoClassDefFoundError") || status.contains("ClassNotFoundException")) return false;
+        if (expectedSha == null || expectedSha.length() < 7) return true;
+        String version = runJar(javaExe, jar, "--version");
+        // --version 是更新能力上线后才有的命令；远端还没带上时不做提交比对
+        if (version == null || version.contains("Unknown command")) return true;
+        if (version.contains("NoClassDefFoundError") || version.contains("ClassNotFoundException")) return false;
+        return version.contains(expectedSha.substring(0, 7));
+    }
+
+    /** 运行新 jar 的某个子命令，成功返回输出（含 stderr），失败返回 null。 */
+    private static String runJar(Path javaExe, Path jar, String arg) {
+        try {
+            Process p = new ProcessBuilder(javaExe.toString(), "-jar", jar.toString(), arg)
+                    .redirectErrorStream(true).start();
+            String out;
+            try (var in = p.getInputStream()) {
+                out = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            }
+            if (!p.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)) {
+                p.destroyForcibly();
+                return null;
+            }
+            // 部分 JVM 版本对未捕获异常仍返回 0，因此退出码与输出都要检查
+            if (p.exitValue() != 0) return out;
+            return out;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // ==================== Server deployment ====================

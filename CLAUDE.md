@@ -56,10 +56,11 @@ java -cp "target/CraftPort.jar;test" LoaderTest <gameDir> <mc> <fabric|forge|opt
 ## 架构
 
 ```
-craftport.cli      CliMain（入口/子命令/交互菜单）、WebPanel（JDK HttpServer + JSON API）
+craftport.cli      CliMain（入口/子命令/交互菜单）、WebPanel（JDK HttpServer + JSON API）、UpdateNotice（启动更新提示）
 craftport.minecraft  全部领域逻辑：安装/加载器/启动/整合包/模组/服务端/登录
 craftport.net      Net（重试梯子 + BMCLAPI 镜像换算）、Downloader（分片下载）
 craftport.base     Os（平台适配）、Config（全局+版本级设置）、Log、Task（线程池+取消异常）、Json
+                   Updater（拉源码+javac 编译）、BuildInfo（jar 内构建信息）
 src/main/resources/craftport/web.html   面板单文件 SPA（约 1.1k 行，内嵌 JS）
 ```
 
@@ -71,6 +72,25 @@ src/main/resources/craftport/web.html   面板单文件 SPA（约 1.1k 行，内
 - 微软：`login --microsoft` 走 Device Code 流（需 `CRAFTPORT_MS_CLIENT_ID`）；成功后的刷新令牌存 `config.json`。
 - `launch` 的默认策略：能刷新缓存的微软会话就用微软，否则退化到离线；`--offline` / `--microsoft` 可强制。
 - 用户可见的登录错误信息用英文（与 CLI 输出约定一致）；内部日志保持中文。
+
+### 自更新（无二进制分发）
+
+`update` 命令走「拉源码 → 本地编译」：`Updater` 从 GitHub 下载 `main` 源码 zip，用本机
+JDK 的 `javac`/`jar` 编译（不需要 Maven），产物写为 `CraftPort.jar.new`，下次启动由
+`run.sh`/`run.cmd` 替换并备份为 `.bak`。
+
+必须知道的约束：
+
+- **javac 的 `-cp` 只用于解析符号，不会打包依赖**——`Updater.compile` 会把运行时 classpath 里的
+  jar（当前 jar 内含 Gson）解压并入新 jar，否则新包启动时 `NoClassDefFoundError`。
+- 更新检查用 GitHub 提交 Atom feed（`commits/<ref>.atom`，**不限流**；API 未认证只有 60 次/小时），
+  可精确到 sha：`/archive/{sha}.zip`。feed 不可达时退回 codeload 的 `Last-Modified` 头。
+- 新 jar 必须通过自检（跑 `status`，含 Gson 加载路径）才会落位；**未捕获异常时 JVM 仍可能返回 0**，
+  所以退出码和输出都要检查。
+- 替换时机在 `run` 脚本里（Windows 上运行中的 jar 无法覆盖）；`update-journal.txt` 记录目标提交，
+  替换后首次启动比对 `build.properties` 的提交来确认并清理（`.bak`、`update/` 工作目录）。
+- 用户数据不参与更新：`config.json`、日志、游戏目录、`servers/` 全部在更新范围之外。
+- `--version` 是自检用的隐藏命令（输出 `BuildInfo.label()`），源码构建显示 `dev`。
 
 ### 四条核心数据流
 

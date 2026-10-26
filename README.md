@@ -22,6 +22,25 @@ run.cmd                    # Windows
 
 不带参数运行进入交互式菜单。CLI 输出为英文；核心模块日志为中文，写入数据目录。
 
+### 更新
+
+```bash
+update --check        # 只检查 GitHub 主分支是否有新提交
+update                # 拉取源码 → 本地编译 → 暂存新 jar
+```
+
+`update` 不做二进制分发：从 GitHub 下载源码，用**本机 JDK 的 javac/jar** 编译出新的
+`CraftPort.jar`（不需要 Maven），自检通过后写为 `CraftPort.jar.new`。
+**重启时由 `run.sh` / `run.cmd` 自动替换**并把旧 jar 备份为 `CraftPort.jar.bak`
+（运行中的 jar 在 Windows 上无法覆盖，所以替换放在启动前）。
+
+- 用户数据不在更新范围内：`config.json`、日志、游戏目录、服务端目录、`servers/` 全部保留。
+- 编译产物写入数据目录下的 `update/`，应用成功后自动清理。
+- 来源固定为本仓库 `main` 分支；`--ref <tag|branch>` 可指定其他分支或标签，
+  `--install-dir <dir>` 可指定 jar 的安装位置（默认当前 jar 所在目录）。
+- 源码构建（无提交信息）不会在启动时提示，但 `update` / `update --check` 会视为「可重新构建」；
+  通过 `update` 构建出的 jar 带提交信息，之后的检查才会做版本比对。
+
 ---
 
 ## 命令行
@@ -94,6 +113,7 @@ EULA 必须显式 `--accept-eula` 或交互确认，不会静默代受。
 versions          # 已安装版本        releases [n]   # 可安装的正式版
 dir [path]        # 查看/设置游戏目录  runtimes       # 已检测的 Java
 status            # 当前配置          server list    # 已部署的服务端
+update [--check]  # 检查并安装更新
 ```
 
 ---
