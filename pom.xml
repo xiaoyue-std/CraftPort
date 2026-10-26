@@ -30,6 +30,17 @@
     <build>
         <finalName>CraftPort</finalName>
         <plugins>
+            <!-- 每次都从 target/classes 重新打包：否则 `update` 装进 target/ 的 jar
+                 （含 build.properties 构建信息）会被当作项目产物，导致源代码构建
+                 也带上陈旧提交信息，更新检查因此误判为最新。 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.2</version>
+                <configuration>
+                    <forceCreation>true</forceCreation>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

@@ -95,6 +95,10 @@ Linux/macOS 当场替换；Windows 运行中的 jar 被锁定（实测连 rename
   清理源码工作目录，但**保留 `CraftPort.jar.bak` 供回滚**（每次更新覆盖，只留最近一次）。
 - 用户数据不参与更新：`config.json`、日志、游戏目录、`servers/` 全部在更新范围之外。
 - `--version` 是自检用的隐藏命令（输出 `BuildInfo.label()`），源码构建显示 `dev`。
+- **构建与 update 共用 `target/CraftPort.jar`**：update 装进去的 jar 带 `build.properties`，
+  比 `target/classes` 新，maven-jar-plugin 会跳过重打包并让 shade 复用该 jar，导致源码构建
+  也带上陈旧提交信息（更新检查误判「已最新」）。`pom.xml` 已用
+  `maven-jar-plugin` 的 `forceCreation=true` 强制每次重建，改动 pom 时不要删掉。
 
 ### 四条核心数据流
 
