@@ -76,8 +76,9 @@ src/main/resources/craftport/web.html   面板单文件 SPA（约 1.1k 行，内
 ### 自更新（无二进制分发）
 
 `update` 命令走「拉源码 → 本地编译」：`Updater` 从 GitHub 下载 `main` 源码 zip，用本机
-JDK 的 `javac`/`jar` 编译（不需要 Maven），产物写为 `CraftPort.jar.new`，下次启动由
-`run.sh`/`run.cmd` 替换并备份为 `.bak`。
+JDK 的 `javac`/`jar` 编译（不需要 Maven），自检通过后安装。**不依赖 run 脚本**：
+Linux/macOS 当场替换；Windows 运行中的 jar 被锁定（实测连 rename 都会 AccessDenied），
+`Updater.scheduleApply` 写一个一次性 cmd/sh，进程退出后完成替换并自删。
 
 必须知道的约束：
 
@@ -87,8 +88,11 @@ JDK 的 `javac`/`jar` 编译（不需要 Maven），产物写为 `CraftPort.jar.
   可精确到 sha：`/archive/{sha}.zip`。feed 不可达时退回 codeload 的 `Last-Modified` 头。
 - 新 jar 必须通过自检（跑 `status`，含 Gson 加载路径）才会落位；**未捕获异常时 JVM 仍可能返回 0**，
   所以退出码和输出都要检查。
-- 替换时机在 `run` 脚本里（Windows 上运行中的 jar 无法覆盖）；`update-journal.txt` 记录目标提交，
-  替换后首次启动比对 `build.properties` 的提交来确认并清理（`.bak`、`update/` 工作目录）。
+- 启动检查（`UpdateNotice`）：成功缓存 6 小时；失败/超时缓存 30 分钟（`ok=false`），
+  主线程最多等 2 秒，超时就写失败缓存，避免连续执行命令时每次都卡在同一个超时。
+  `update --check` 绕过缓存、实时查询（不受抑制）。
+- `update-journal.txt` 记录目标提交；替换后首次启动比对 `build.properties` 提交来确认，
+  清理源码工作目录，但**保留 `CraftPort.jar.bak` 供回滚**。
 - 用户数据不参与更新：`config.json`、日志、游戏目录、`servers/` 全部在更新范围之外。
 - `--version` 是自检用的隐藏命令（输出 `BuildInfo.label()`），源码构建显示 `dev`。
 

@@ -26,20 +26,27 @@ run.cmd                    # Windows
 
 ```bash
 update --check        # 只检查 GitHub 主分支是否有新提交
-update                # 拉取源码 → 本地编译 → 暂存新 jar
+update                # 拉取源码 → 本地编译 → 安装新 jar
+update --no-apply     # 只编译并暂存 CraftPort.jar.new，不自动替换
 ```
 
 `update` 不做二进制分发：从 GitHub 下载源码，用**本机 JDK 的 javac/jar** 编译出新的
-`CraftPort.jar`（不需要 Maven），自检通过后写为 `CraftPort.jar.new`。
-**重启时由 `run.sh` / `run.cmd` 自动替换**并把旧 jar 备份为 `CraftPort.jar.bak`
-（运行中的 jar 在 Windows 上无法覆盖，所以替换放在启动前）。
+`CraftPort.jar`（不需要 Maven），自检通过后安装。**不需要运行脚本**，直接
+`java -jar CraftPort.jar update` 即可：
 
-- 用户数据不在更新范围内：`config.json`、日志、游戏目录、服务端目录、`servers/` 全部保留。
-- 编译产物写入数据目录下的 `update/`，应用成功后自动清理。
-- 来源固定为本仓库 `main` 分支；`--ref <tag|branch>` 可指定其他分支或标签，
-  `--install-dir <dir>` 可指定 jar 的安装位置（默认当前 jar 所在目录）。
-- 源码构建（无提交信息）不会在启动时提示，但 `update` / `update --check` 会视为「可重新构建」；
-  通过 `update` 构建出的 jar 带提交信息，之后的检查才会做版本比对。
+- Linux / macOS：当场替换文件，下次启动就是新版本。
+- Windows：运行中的 jar 被锁定，`update` 会调度一个一次性小脚本，**进程退出后自动完成替换**
+  （下一次启动即新版本）。
+- 两种情况下旧 jar 都保留为 `CraftPort.jar.bak`，回滚时改回原名即可。
+
+其他行为：
+
+- **用户数据不在更新范围内**：`config.json`、日志、游戏目录、服务端目录、`servers/` 全部保留。
+- 源码解压在数据目录的 `update/`，应用成功后自动清理；`.bak` 保留供回滚。
+- 来源固定为本仓库 `main` 分支；`--ref <tag|branch>` 可指定，`--install-dir <dir>` 可指定 jar 位置。
+- 启动时后台检查一次更新：成功后缓存 6 小时；**检查超时或失败则 30 分钟内不再尝试**，
+  且单次启动最多等待 2 秒，不会拖慢启动。`update --check` 不受缓存影响，总是实时查询。
+- 从源码 `mvn package` 构建的 jar 无提交信息，启动时不提示更新；`update` 构建的 jar 才会做版本比对。
 
 ---
 

@@ -241,9 +241,9 @@ public final class Updater {
     }
 
     /**
-     * 处理「新 jar 已由 run 脚本替换」的收尾：
-     * journal 记录本次更新的目标提交；当前构建的提交与之相符说明替换已发生
-     * （源码构建的 label 是 dev，无法靠 label 区分，因此用提交比对）。
+     * 处理「新 jar 已替换」的收尾：journal 记录本次更新的目标提交，当前构建与之相符说明
+     * 替换已发生（源码构建的 label 是 dev，无法靠 label 区分，因此用提交比对）。
+     * 只清理源码工作目录与日志；CraftPort.jar.bak 保留，便于回滚。
      */
     public static void consumePendingMarker() {
         Path journal = Os.dataDir().resolve("update-journal.txt");
@@ -258,7 +258,10 @@ public final class Updater {
             }
             System.out.println("Update applied: running " + BuildInfo.label()
                     + (oldLabel.isBlank() ? "" : " (previously " + oldLabel + ")") + ".");
-            Files.deleteIfExists(currentJar().resolveSibling("CraftPort.jar.bak"));
+            Path bak = currentJar().resolveSibling("CraftPort.jar.bak");
+            if (Files.exists(bak)) {
+                System.out.println("  Previous version kept at " + bak.getFileName() + " for rollback.");
+            }
             deleteRecursively(workDir());
             Files.deleteIfExists(journal);
             // 更新检查缓存里的「本地版本」已过期，删掉以便下次重新比对
@@ -323,12 +326,79 @@ public final class Updater {
     }
 
     /**
-     * 落位：新 jar 写为 CraftPort.jar.new；当前 jar 在 run 脚本替换前先备份为 .bak。
-     * 运行中的 jar 在 Windows 上无法覆盖，因此统一走「下次启动由 run 脚本替换」。
+     * 落位：新 jar 先写为 CraftPort.jar.new。
+     * applyNow 时尝试当场替换（Linux/macOS 上运行中的 jar 可以 rename 覆盖；
+     * Windows 上文件被占用会失败，此时保留 .new 交给 run 脚本在下次启动前替换）。
+     *
+     * @return true = 已当场替换；false = 仅暂存，等待 run 脚本应用
      */
-    public static void install(BuildResult result, InstallPlan plan) throws IOException {
+    public static boolean install(BuildResult result, InstallPlan plan, boolean applyNow) throws IOException {
         Files.createDirectories(plan.newJar().getParent());
         Files.copy(result.jar(), plan.newJar(), StandardCopyOption.REPLACE_EXISTING);
+        if (!applyNow) return false;
+        try {
+            if (Files.isRegularFile(plan.currentJar())) {
+                Files.copy(plan.currentJar(), plan.backupJar(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            Files.move(plan.newJar(), plan.currentJar(), StandardCopyOption.REPLACE_EXISTING);
+            return true;
+        } catch (IOException e) {
+            Log.debug("无法直接替换运行中的 jar，保留 .new 等待重启: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 调度「进程退出后自动替换」：Windows 上运行中的 jar 被锁定，既不能覆盖也不能重命名，
+     * 因此写一个一次性的小脚本，等当前进程退出（释放文件锁）后完成替换，然后自删。
+     * 这样纯命令行 `java -jar CraftPort.jar update` 也能独立完成更新，不依赖 run 脚本。
+     *
+     * @return true = 已调度（进程随后应退出）；false = 调度失败，只能等 run 脚本
+     */
+    public static boolean scheduleApply(InstallPlan plan) {
+        try {
+            Path dir = plan.currentJar().getParent();
+            Path helper;
+            List<String> cmd;
+            if (Os.IS_WINDOWS) {
+                helper = dir.resolve("craftport-apply-update.cmd");
+                String script = """
+                        @echo off
+                        ping -n 3 127.0.0.1 >nul
+                        if exist "%s" move /y "%s" "%s" >nul
+                        if exist "%s" move /y "%s" "%s" >nul
+                        del "%%~f0"
+                        """.formatted(plan.currentJar(), plan.currentJar(), plan.backupJar(),
+                        plan.newJar(), plan.newJar(), plan.currentJar());
+                Files.writeString(helper, script, StandardCharsets.UTF_8);
+                cmd = List.of("cmd", "/c", helper.toString());
+            } else {
+                helper = dir.resolve("craftport-apply-update.sh");
+                String script = """
+                        #!/bin/sh
+                        sleep 2
+                        [ -f "%s" ] && mv -f "%s" "%s"
+                        [ -f "%s" ] && mv -f "%s" "%s"
+                        rm -f "$0"
+                        """.formatted(plan.currentJar(), plan.currentJar(), plan.backupJar(),
+                        plan.newJar(), plan.newJar(), plan.currentJar());
+                Files.writeString(helper, script, StandardCharsets.UTF_8);
+                try {
+                    Files.setPosixFilePermissions(helper,
+                            java.nio.file.attribute.PosixFilePermissions.fromString("rwxr-xr-x"));
+                } catch (UnsupportedOperationException | IOException ignored) {
+                }
+                cmd = List.of("/bin/sh", helper.toString());
+            }
+            new ProcessBuilder(cmd)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+            return true;
+        } catch (Exception e) {
+            Log.debug("调度自动替换失败: " + e.getMessage());
+            return false;
+        }
     }
 
     // ==================== 工具 ====================

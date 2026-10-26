@@ -157,9 +157,10 @@ public final class CliMain {
                   dir [path]                    Show or set the game (.minecraft) directory
                   runtimes                      List detected Java runtimes
                   update [--check] [--ref r]    Check GitHub for a newer commit; without
-                                [--install-dir d]  --check, build it from source and stage
-                                                CraftPort.jar.new for the next launch
-                                                (requires a JDK; user data is untouched)
+                                [--install-dir d]  --check, build it from source and install
+                                [--no-apply]       the new jar (--no-apply only stages
+                                                CraftPort.jar.new for the next launch).
+                                                Requires a JDK; user data is untouched
                   status                        Show current configuration
 
                 Run without arguments for an interactive menu.""".stripIndent());
@@ -641,19 +642,33 @@ public final class CliMain {
         }
 
         Updater.InstallPlan plan = Updater.planInstall(result.jar(), installDir);
+        boolean applyNow = !flags.containsKey("no-apply");
+        boolean applied;
+        boolean scheduled = false;
         try {
-            Updater.install(result, plan);
+            applied = Updater.install(result, plan, applyNow);
             Updater.writeJournal(BuildInfo.label(), remote.sha());
+            // 没能当场替换（Windows 锁定）时，调度进程退出后自动完成替换
+            if (applyNow && !applied) scheduled = Updater.scheduleApply(plan);
         } catch (Exception e) {
             System.out.println(red("Install failed: " + e.getMessage()));
             return 1;
         }
-        System.out.println(green("New jar staged: " + plan.newJar()));
-        System.out.println("  Built " + result.jar().getFileName() + " -> " + plan.newJar().getFileName()
-                + " in " + (result.elapsedMs() / 1000) + "s");
+        System.out.println("  Built " + result.jar().getFileName() + " in " + (result.elapsedMs() / 1000) + "s");
         System.out.println("  Your config, logs, game directory and servers are untouched.");
-        System.out.println("Restart CraftPort (run.cmd / run.sh) to apply; the current jar is backed up as "
-                + plan.backupJar().getFileName() + ".");
+        if (applied) {
+            System.out.println(green("Updated in place: " + plan.currentJar()));
+            System.out.println("  Previous version saved as " + plan.backupJar().getFileName()
+                    + " (restart CraftPort to run the new version).");
+        } else if (scheduled) {
+            System.out.println(green("Update will be applied automatically when this process exits."));
+            System.out.println("  Next launch runs the new version; previous one kept as "
+                    + plan.backupJar().getFileName() + ".");
+        } else {
+            System.out.println(green("New jar staged: " + plan.newJar()));
+            System.out.println("  Restart CraftPort (run.cmd / run.sh) to apply; the current jar is backed up as "
+                    + plan.backupJar().getFileName() + ".");
+        }
         return 0;
     }
 
