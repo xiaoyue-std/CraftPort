@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Mojang 官方 Java 运行时自动下载，移植自 ModJava.vb 的 SelectOrDownloadJava 下载分支。
+ * Mojang 官方 Java 运行时自动下载。
  *  - 运行时清单：piston-meta 的 products/java-runtime/all.json（BMCLAPI 镜像同路径）
  *  - 组件选择：优先版本 json 声明的 javaVersion.component（1.20.5+ 为 java-runtime-delta/Java 21），
  *    老版本回退 jre-legacy（Java 8）

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Minecraft 版本对象，移植自 ModMinecraft.vb 的 McVersion。
+ * Minecraft 版本对象。
  *  - 读取 versions/{名}/{名}.json，递归合并 inheritsFrom（子版本字段的优先，libraries 子版本在前）
  *  - 提供版本识别（正式版/快照/远古版）、版本隔离后的游戏目录、客户端 jar 路径
  */
@@ -30,7 +30,7 @@ public final class McVersion {
     public JsonObject info;            // 合并 inheritsFrom 后的完整 json
     public String releaseTime = "";
     public String mcVersion = "";      // 对应 clientVersion / id 识别结果
-    public String infoSource = "";     // 识别来源（与 PCL2 的 InstanceInfoSource 对应）
+    public String infoSource = "";     // 版本信息识别来源
     public boolean isOld;              // 远古版本（releaseTime < 2013）
     public boolean isSnapshot;         // 快照/非正式版
     public String rootName;            // 继承链最底层的原版版本名（Fabric/Forge 的客户端 jar 所在）
@@ -107,7 +107,7 @@ public final class McVersion {
             if ("inheritsFrom".equals(key)) continue;
             JsonElement cv = entry.getValue();
             if ("libraries".equals(key) && cv.isJsonArray()) {
-                // 子版本库在前，父版本库在后（与 PCL2 一致）
+                // 子版本库在前，父版本库在后（继承链上子版本优先）
                 JsonArray arr = new JsonArray();
                 cv.getAsJsonArray().forEach(arr::add);
                 if (merged.has(key) && merged.get(key).isJsonArray()) {

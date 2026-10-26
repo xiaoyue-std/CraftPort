@@ -16,12 +16,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 网络请求模块，移植自 Modules/Base/ModNet.vb 的 NetRequestByClientRetry。
- * 重试策略与 PCL2 一致：共 3 次，超时 10s → 30s → 4s；403/404 不重试；429 先等待 10 秒。
+ * 网络请求模块。
+ * 重试策略：共 3 次，超时 10s → 30s → 4s；403/404 不重试；429 先等待 10 秒。
  * 同时实现 BMCLAPI 镜像 URL 换算规则。
  */
 public final class Net {
-    /** BMCLAPI 镜像源（对应 PCL2 的下载镜像规则）。 */
+    /** BMCLAPI 镜像源（国内加速下载）。 */
     public static final String BMCLAPI = "https://bmclapi2.bangbang93.com";
     public static final String MOJANG_META = "https://launchermeta.mojang.com";
 
@@ -39,7 +39,7 @@ public final class Net {
 
     public static HttpClient client() { return CLIENT; }
 
-    /** GET 文本，按 PCL2 重试策略。 */
+    /** GET 文本，按上述重试策略。 */
     public static String get(String url) throws IOException {
         return get(url, java.util.Map.of());
     }
@@ -67,7 +67,7 @@ public final class Net {
                 Thread.currentThread().interrupt();
                 throw new IOException("请求被中断", e);
             } catch (NetException e) {
-                // 403/404 直接失败不重试（对应 PCL2 规则）
+                // 403/404 直接失败不重试
                 if (e.statusCode == 403 || e.statusCode == 404) throw e;
                 last = e;
                 Log.warn("请求失败(第" + (attempt + 1) + "次) " + url + ": " + e.getMessage());
@@ -83,7 +83,7 @@ public final class Net {
         throw last != null ? last : new IOException("请求失败: " + url);
     }
 
-    /** GET 并要求返回完整 JSON（对应 RequireJson 校验）。 */
+    /** GET 并要求返回完整 JSON。 */
     public static com.google.gson.JsonObject getJson(String url) throws IOException {
         String text = get(url);
         com.google.gson.JsonObject o = Json.parseObject(text);
@@ -107,7 +107,7 @@ public final class Net {
         return post(url, json, "application/json");
     }
 
-    /** POST JSON 并把响应解析为 JsonObject（CurseForge 批量文件接口等）。 */
+    /** POST JSON 并解析为 JsonObject（CurseForge 批量文件接口等）。 */
     public static com.google.gson.JsonObject getJsonViaPost(String url, String json) throws IOException {
         com.google.gson.JsonObject o = Json.parseObject(postJson(url, json));
         if (o == null) throw new IOException("Response is not valid JSON: " + url);
@@ -148,13 +148,7 @@ public final class Net {
 
     // ==================== BMCLAPI 镜像规则 ====================
 
-    /**
-     * 将官方 URL 换算为 BMCLAPI 镜像 URL，规则与 ModNet.vb 一致；无法换算时返回 null。
-     *  - version manifest: launchermeta.mojang.com/mc/game/... → bmclapi/mc/game/...
-     *  - assets: resources.download.minecraft.net/{x}/{y} → bmclapi/assets/{x}/{y}
-     *  - libraries: libraries.minecraft.net/... → bmclapi/maven/...
-     *  - 版本 json/jar（launcher.mojang.com / piston-meta / piston-data）→ bmclapi 根路径
-     */
+    /** 将官方 URL 换算为 BMCLAPI 镜像 URL；无法换算时返回 null。 */
     public static String mirrorUrl(String url) {
         if (url == null) return null;
         if (url.startsWith(BMCLAPI)) return url;

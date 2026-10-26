@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 平台适配层，移植自 ModBase.vb 的路径常量与平台判断（IsWinVistaOrHigher / PathTemp / PathPure 等）。
+ * 平台适配层：路径常量与平台判断集中在此。
  * 这是 Linux 适配的核心：
  *  - 数据目录：Windows 用 %APPDATA%\CraftPort，Linux/macOS 用 ~/.local/share/CraftPort（遵循 XDG）
  *  - 临时目录：Windows 用 %TEMP%\CraftPort，Linux 用 /tmp/CraftPort 或 $XDG_RUNTIME_DIR
@@ -50,7 +50,7 @@ public final class Os {
 
     private Os() {}
 
-    /** 启动器数据目录（替代 PCL 程序目录存储 Setup.ini / 日志）。 */
+    /** 启动器数据目录（存放 config.json 与日志）。 */
     public static Path dataDir() {
         if (IS_WINDOWS) {
             String appdata = env("APPDATA", System.getProperty("user.home"));
@@ -62,7 +62,7 @@ public final class Os {
         return Path.of(System.getProperty("user.home"), ".local", "share", "CraftPort");
     }
 
-    /** 临时目录，对应 PCL 的 PathTemp = %TEMP%\PCL\。 */
+    /** 临时目录：Windows 为 %TEMP%\CraftPort，Linux 为 $XDG_RUNTIME_DIR/CraftPort 或 /tmp/CraftPort。 */
     public static Path tempDir() {
         if (IS_WINDOWS) return Path.of(env("TEMP", System.getProperty("java.io.tmpdir")), "CraftPort");
         String xdg = env("XDG_RUNTIME_DIR", "");
@@ -111,13 +111,13 @@ public final class Os {
             return Path.of(System.getProperty("user.home"),
                     "Library", "Application Support", "minecraft");
         }
-        // Linux：官方启动器与多数社区启动器使用 ~/...，与 PCL2 一样支持多目录，这里给默认值
+        // Linux：官方启动器与多数社区启动器使用 ~/...，这里给默认值
         return Path.of(System.getProperty("user.home"), ".minecraft");
     }
 
     /**
-     * 探测系统上可能的 .minecraft 目录列表（对应 ModMinecraft 的目录发现逻辑）。
-     * PCL2 扫描启动器所在目录 / 官启目录 / 自定义目录；Java 版额外适配 Linux 常见位置。
+     * 探测系统上可能的 .minecraft 目录列表：扫描当前目录 / 官方启动器目录 / 自定义目录，
+     * 并额外适配 Linux 常见启动器位置。
      */
     public static List<Path> discoverMinecraftDirs() {
         List<Path> list = new ArrayList<>();
@@ -126,7 +126,7 @@ public final class Os {
         addIfValid(list, Path.of(System.getProperty("user.dir"), "versions"));
         addIfValid(list, defaultMinecraftDir());
         if (!IS_WINDOWS) {
-            // Linux 上各种启动器的常用目录（对应 PCL2 扫描 HMCL/Prism/Modrinth 的思路）
+            // Linux 上各种启动器的常用目录（HMCL / Prism / Modrinth 等）
             addIfValid(list, Path.of(home.toString(), "curseforge", "minecraft", "Install", ".minecraft"));
             addIfValid(list, Path.of(home.toString(), ".local", "share", "PrismLauncher", ".minecraft"));
             addIfValid(list, Path.of(home.toString(), ".var", "app", "org.prismlauncher.PrismLauncher", "data", "PrismLauncher", ".minecraft"));

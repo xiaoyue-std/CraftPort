@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 版本安装服务，移植自 ModDownload.vb 的版本列表获取与安装（DlClient）。
+ * 版本安装服务：版本清单获取与本体 json 安装。
  * 版本清单按设置在官方源与 BMCLAPI 镜像间选择。
  */
 public final class InstallService {
@@ -27,7 +27,7 @@ public final class InstallService {
 
     private InstallService() {}
 
-    /** 获取版本清单（对应 ModDownload 的版本列表，支持镜像）。 */
+    /** 获取版本清单（支持镜像）。 */
     public static List<Release> fetchManifest() throws IOException {
         String official = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
         int policy = craftport.base.Config.getInt(craftport.base.Config.TOOL_DOWNLOAD_VERSION, 1);

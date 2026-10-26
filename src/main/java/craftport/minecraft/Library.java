@@ -12,8 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 一个 Minecraft 库（对应 ModMinecraft.vb 中对 libraries 的解析）。
- * 记录坐标、下载 URL、natives 分类器与规则过滤结果。
+ * 一个 Minecraft 库：坐标、下载 URL、natives 分类器与规则过滤结果。
  */
 public final class Library {
 

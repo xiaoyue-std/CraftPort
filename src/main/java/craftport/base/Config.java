@@ -8,24 +8,22 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 设置系统，移植自 Pages/PageSetup/Setup.vb。
- * PCL2 按 Normal/Registry/Instance 三种存储分别写 ini 与注册表；
- * Java 重构版统一改为 JSON 文件（跨平台无注册表）：
+ * 设置系统。所有设置统一用 JSON 文件持久化（跨平台、无注册表依赖）：
  *  - 全局设置：数据目录 config.json
- *  - 版本级设置：versions/{版本名}/CraftPort/Setup.json（对应 Instance 存储与 PCL\Setup.ini）
+ *  - 版本级设置：versions/{版本名}/CraftPort/Setup.json
  */
 public final class Config {
     private static final Path GLOBAL_FILE = Os.dataDir().resolve("config.json");
     private static JsonObject global = new JsonObject();
 
-    // 登录缓存（PCL2 以 DES 加密存注册表；此处存于用户目录 config.json，权限跟随操作系统）
+    // 登录缓存：明文存于数据目录 config.json，文件权限跟随操作系统（仅为本地会话缓存）
     public static String cacheUsername = "";
     public static String cacheUuid = "";
     public static String cacheAccessToken = "";
     public static String cacheRefreshToken = ""; // 微软登录刷新令牌
     public static String cacheClientId = "";     // 微软登录应用 ID，可用环境变量 CRAFTPORT_MS_CLIENT_ID 覆盖
 
-    /** 最近一次选择的版本（对应 PCL.ini 的 Version 缓存）。 */
+    /** 最近一次选择的版本。 */
     public static String cacheVersion = "";
 
     /** 自定义游戏目录，格式 名称>路径|名称>路径（对应 LaunchFolders）。 */
@@ -122,12 +120,12 @@ public final class Config {
         versionSetup(ver).addProperty(key, value); saveVersionSetup(ver);
     }
 
-    // ---- 设置键名常量（与 PCL2 设置项一一对应）----
+    // ---- 设置键名常量 ----
     /** 下载源：0 镜像优先 / 1 自动 / 2 官方优先。 */
     public static final String TOOL_DOWNLOAD_SOURCE = "ToolDownloadSource";
     /** 版本清单源：0 镜像优先 / 1 自动 / 2 官方优先。 */
     public static final String TOOL_DOWNLOAD_VERSION = "ToolDownloadVersion";
-    /** 下载线程数（PCL2 默认 63，Linux 文件系统上 32 已足够）。 */
+    /** 下载线程数（Windows 默认 63，Linux 文件系统上 32 已足够）。 */
     public static final String TOOL_DOWNLOAD_THREAD = "ToolDownloadThread";
     /** GC 优化：0 无 / 1 G1 / 4 优化 G1 / 5 ZGC。 */
     public static final String LAUNCH_ADVANCE_GC = "LaunchAdvanceGC";
@@ -156,7 +154,7 @@ public final class Config {
     /** 服务端默认部署根目录（空 = {游戏目录}/servers）。 */
     public static final String SERVER_DEPLOY_DIR = "ServerDeployDir";
 
-    /** PCL2 默认 JVM 参数（去掉仅 Windows 有意义的 allowAmbiguousCommands）。 */
+    /** 默认 JVM 参数（不含仅 Windows 有意义的 allowAmbiguousCommands）。 */
     public static final String DEFAULT_JVM_ARGS =
             "-XX:-OmitStackTraceInFastThrow -Dfml.ignoreInvalidMinecraftCertificates=true -Dfml.ignorePatchDiscrepancies=true";
 }

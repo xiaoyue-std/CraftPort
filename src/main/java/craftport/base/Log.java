@@ -7,8 +7,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * 日志模块，移植自 PCL2 的 Modules/Base/PclLogger.vb。
- * 输出到控制台与数据目录下的 Logs/latest.log，Linux/Windows 通用。
+ * 日志模块：输出到控制台与数据目录下的 Logs/latest.log，Linux/Windows 通用。
  */
 public final class Log {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -31,7 +30,7 @@ public final class Log {
             Path dir = dataDir.resolve("Logs");
             Files.createDirectories(dir);
             logFile = dir.resolve("latest.log");
-            // 保留最近一次日志为 previous.log（对应 PCL 的日志轮换习惯）
+            // 保留最近一次日志为 previous.log 并做轮换（最多保留 20 个文件）
             if (Files.exists(logFile)) {
                 Files.move(logFile, dir.resolve(FILE.format(LocalDateTime.now()) + ".log"),
                         StandardCopyOption.REPLACE_EXISTING);

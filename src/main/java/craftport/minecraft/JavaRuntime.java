@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 一个已检测到的 Java 运行时（对应 ModJava.vb 的 JRE 检测结果）。
+ * 一个已检测到的 Java 运行时。
  */
 public record JavaRuntime(String majorVersion, String fullVersion, Path executable,
                           String fileEncoding, String nativeEncoding) {

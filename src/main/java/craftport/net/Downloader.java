@@ -19,10 +19,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
 
 /**
- * 下载引擎，移植自 ModNet.vb 的下载部分与 ModDownload.vb。
+ * 下载引擎。
  *  - 下载源：官方与 BMCLAPI 镜像自动切换（ToolDownloadSource：0 镜像优先 / 1 自动 / 2 官方优先）
- *  - 大文件多线程分片（>1MB 分片，每片至少 256KB，对应 PCL2 规则）
+ *  - 大文件多线程分片（>1MB 分片，每片至少 256KB）
  *  - SHA1 / 大小校验，失败自动重试
+ *  - 全局令牌桶限速（DownloadSpeedLimit）
  */
 public final class Downloader {
 
@@ -84,7 +85,7 @@ public final class Downloader {
     public static void download(DownloadItem item, BiConsumer<Double, String> progress) throws IOException {
         Path dest = item.dest();
         Files.createDirectories(dest.getParent());
-        // 已存在且校验通过则跳过（对应 PCL2 的重复下载检查）
+        // 已存在且校验通过则跳过
         if (Files.exists(dest) && verify(dest, item.sha1(), item.size())) {
             if (progress != null) progress.accept(1.0, "已存在");
             return;

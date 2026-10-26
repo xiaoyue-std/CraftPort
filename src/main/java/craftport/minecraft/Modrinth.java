@@ -46,7 +46,6 @@ public final class Modrinth {
 
     /**
      * 按项目类型搜索（Modrinth project_type：mod / resourcepack / shader / datapack / modpack）。
-     * 对应 PCL2 下载页的分类（Mod / 资源包 / 光影 / 数据包 / 整合包）。
      */
     public static List<ModInfo> search(String query, String projectType) throws IOException {
         String facets = "%5B%5B%22project_type%3A" + URLEncoder.encode(projectType, StandardCharsets.UTF_8)

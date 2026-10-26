@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 启动参数构建，移植自 ModLaunch.vb 的 VersionArgumentJvm / VersionArgumentGame / 占位符替换。
+ * 启动参数构建：JVM 参数、游戏参数与占位符替换。
  */
 public final class ArgsBuilder {
 
@@ -313,7 +313,7 @@ public final class ArgsBuilder {
 
     // ==================== 去重 ====================
 
-    /** JVM 参数去重：键值对参数新值覆盖旧值，其余保留（对应 PCL2 的去重规则）。 */
+    /** JVM 参数去重：键值对参数新值覆盖旧值，其余保留。 */
     private static List<String> dedupJvm(List<String> args) {
         List<String> result = new ArrayList<>();
         Set<String> seenKeys = new HashSet<>();

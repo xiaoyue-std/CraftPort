@@ -29,9 +29,6 @@ import java.util.Scanner;
  *
  * Usage: java -jar CraftPort.jar [command] [args]
  * Run without arguments for the interactive menu.
- *
- * Reuses the exact core pipeline of the GUI edition (installation, loaders,
- * CurseForge, Java management, launch); only the presentation layer differs.
  */
 public final class CliMain {
 
@@ -304,7 +301,7 @@ public final class CliMain {
     }
 
     /**
-     * 内容目标目录（对应 PCL2 的分类落位）：
+     * 内容目标目录：
      * mod → mods/，resourcepack → resourcepacks/，shader → shaderpacks/，datapack → datapacks/。
      * --dir 显式指定时优先；有 --mc 则放版本隔离目录，否则放游戏根。
      */

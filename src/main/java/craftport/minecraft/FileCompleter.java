@@ -16,12 +16,11 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * 启动前文件补全，移植自 ModDownload.vb（DlClientFix / DlClientAssetIndexGet / 资源对象下载）
- * 与 ModLaunch.McLaunchNatives 的 natives 解压。
+ * 启动前文件补全：客户端 jar、资源索引与对象、库文件，以及 natives 解压。
  */
 public final class FileCompleter {
 
-    /** PCL2 硬编码的 legacy 资源索引回退（sha1 与 URL）。 */
+    /** 远古版本缺失资源索引时的硬编码回退（固定 sha1 与 URL）。 */
     private static final String LEGACY_INDEX_SHA1 = "c0fd82e8ce9fbc93119e40d96d5a4e62cfa3f729";
     private static final String LEGACY_INDEX_URL =
             "https://launchermeta.mojang.com/mc/assets/legacy/c0fd82e8ce9fbc93119e40d96d5a4e62cfa3f729/legacy.json";
@@ -76,7 +75,7 @@ public final class FileCompleter {
                 Downloader.download(new Downloader.DownloadItem(url, indexFile, sha1, 0, "资源索引 " + indexId), null);
             }
         } else {
-            // 回退 legacy 索引（对应 PCL2 的硬编码回退）
+            // 回退 legacy 索引
             indexId = "legacy";
             indexFile = assetsDir.resolve("indexes").resolve("legacy.json");
             if (!JsonUtil.isJsonFile(indexFile)) {
@@ -115,7 +114,7 @@ public final class FileCompleter {
             });
         }
 
-        // 3. virtual / map_to_resources 硬链接式复制（对应 PCL2 的虚拟资源处理）
+        // 3. virtual / map_to_resources 硬链接式复制
         if (virtual) copyTree(objectsDir, virtualDir, index);
         if (mapToResources) copyTree(objectsDir, resourcesDir, index);
     }
@@ -171,7 +170,7 @@ public final class FileCompleter {
                 }
             }
         }
-        // 清理目录内多余文件（对应 PCL2 的"删除目录内多余文件"）
+        // 清理目录内多余文件（旧版 natives 残留）
         try (var stream = Files.list(targetDir)) {
             for (Path p : stream.toList()) {
                 if (!validFiles.contains(p)) {

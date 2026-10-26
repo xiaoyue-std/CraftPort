@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * .minecraft 目录管理，移植自 ModMinecraft.vb 的目录发现 / 版本扫描 / launcher_profiles.json 维护。
+ * .minecraft 目录管理：目录发现、版本扫描、launcher_profiles.json 维护。
  */
 public final class McFolder {
 
@@ -26,7 +26,7 @@ public final class McFolder {
         if (Files.isDirectory(def.resolve("versions"))) return def;
         List<Path> found = Os.discoverMinecraftDirs();
         if (!found.isEmpty()) return found.get(0);
-        // 全无则自动创建（与 PCL2 一致）
+        // 全无则自动创建
         return def;
     }
 
@@ -55,7 +55,7 @@ public final class McFolder {
         return list;
     }
 
-    /** 确保目录结构存在，并维护 launcher_profiles.json（clientToken 与 PCL2 一致）。 */
+    /** 确保目录结构存在，并维护 launcher_profiles.json（固定 clientToken）。 */
     public static void ensureProfile(Path root) {
         try {
             Files.createDirectories(root.resolve("versions"));
@@ -78,7 +78,7 @@ public final class McFolder {
         }
     }
 
-    /** 扫描 versions 下的全部版本（对应 ModMinecraft 的版本扫描）。 */
+    /** 扫描 versions 下的全部版本。 */
     public static List<McVersion> scanVersions(Path root) {
         List<McVersion> versions = new ArrayList<>();
         Path versionsDir = root.resolve("versions");
@@ -86,7 +86,7 @@ public final class McFolder {
         try (var stream = Files.list(versionsDir)) {
             for (Path folder : stream.filter(Files::isDirectory).toList()) {
                 String name = folder.getFileName().toString();
-                // 跳过 cache 等无 json 目录（对应 PCL2 的跳过逻辑）
+                // 跳过无同名 json 的目录（缓存与其他启动器的私有目录）
                 if (!Files.isRegularFile(folder.resolve(name + ".json"))) continue;
                 if (name.equals("cache") || name.equals("BLClient") || name.equals("PCL")) continue;
                 McVersion v = McVersion.load(folder, name);

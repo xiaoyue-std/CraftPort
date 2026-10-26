@@ -21,7 +21,7 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 /**
- * CurseForge 整合包安装（对应 ModModpack.vb 的核心流程）。
+ * CurseForge 整合包安装。
  *
  * CurseForge 整合包 = zip{manifest.json, overrides/}：
  *  1. 下载整合包 zip 并解包（防 zip-slip）

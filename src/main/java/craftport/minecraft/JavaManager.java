@@ -17,10 +17,10 @@ import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
- * Java 运行时搜索 / 检测 / 选择，移植自 Modules/Minecraft/ModJava.vb。
+ * Java 运行时搜索 / 检测 / 选择。
  *  - 搜索：PATH、JAVA_HOME/JDK_HOME、常见安装目录、各启动器 runtime 目录
  *  - 检测：运行 java -XshowSettings:properties -version 解析版本
- *  - 版本要求：GetJavaRequirement 的规则（1.20.5+→21、1.18+→17、1.17+→16、1.12+→8、1.5.2-→≤8）
+ *  - 版本要求：1.20.5+→21、1.18+→17、1.17+→16、1.12+→8、1.5.2-→≤8
  *  - 选择：自动模式选主版本号最接近 21 且满足要求的
  */
 public final class JavaManager {
@@ -30,7 +30,7 @@ public final class JavaManager {
 
     private JavaManager() {}
 
-    /** 清空缓存以便重新搜索（对应 PCL2 的"重新全盘搜索"）。 */
+    /** 清空缓存以便重新全盘搜索。 */
     public static synchronized void invalidate() {
         searched = false;
         cache.clear();
@@ -38,7 +38,7 @@ public final class JavaManager {
 
     // ==================== 搜索 ====================
 
-    /** 全盘搜索 Java（对应 ModJava 的并行搜索，此处为顺序搜索 + 去重）。 */
+    /** 全盘搜索 Java（顺序搜索 + 去重）。 */
     public static synchronized List<JavaRuntime> searchAll() {
         if (searched) return new ArrayList<>(cache);
         cache.clear();
@@ -62,7 +62,7 @@ public final class JavaManager {
             if (v != null && !v.isBlank()) candidates.add(Path.of(v.trim(), "bin", Os.exeName("java")));
         }
 
-        // 3. 常见安装目录（合并 PCL2 的 CandidateFolders 与 Linux 习惯位置）
+        // 3. 常见安装目录（含各平台习惯位置）
         Path home = Path.of(System.getProperty("user.home"));
         // 启动器自动下载的 Mojang 运行时（各平台统一扫描当前 .minecraft 的 runtime 目录）
         try {
@@ -166,7 +166,7 @@ public final class JavaManager {
             Matcher version = Pattern.compile("java\\.version = ([^\\r\\n]+)").matcher(output);
             if (!version.find()) return null;
             String full = version.group(1).trim();
-            // 1.x 格式转换（对应 PCL2 的 "1." 前缀处理）
+            // 1.x 格式转换
             String major = full.startsWith("1.") ? full.substring(2, full.indexOf('.', 2)) : full.split("[.\"_]")[0];
             String fileEnc = group(output, "file\\.encoding = ([^\\r\\n]+)");
             String nativeEnc = group(output, "native\\.encoding = ([^\\r\\n]+)");
@@ -240,7 +240,7 @@ public final class JavaManager {
         JavaRuntime best = firstSatisfying(req);
         if (best != null) return best;
 
-        // 未找到 → 自动下载（对应 PCL2 SelectOrDownloadJava 的下载分支）
+        // 未找到 → 自动下载 Mojang 运行时
         Log.info("未找到满足要求的 Java（" + req[0] + "+），自动下载 Mojang 运行时…");
         try {
             JavaRuntimeDownloader.ensureRuntime(version);

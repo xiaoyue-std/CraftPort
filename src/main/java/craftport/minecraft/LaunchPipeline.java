@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 启动流水线，移植自 ModLaunch.vb 的 McLaunchSteps（LoaderCombo 编排）：
+ * 启动流水线：
  * 预检测 → 获取 Java → 补全文件 → 生成参数 → 解压 Natives → 版本特判(语言) → 启动进程。
  */
 public final class LaunchPipeline {
@@ -34,10 +34,10 @@ public final class LaunchPipeline {
         McVersion version = options.version();
         Path mcRoot = options.mcRoot();
 
-        // ---- 步骤 0：预检测（对应 McLaunchPreCheck）----
+        // ---- 步骤 0：预检测 ----
         report(onProgress, 0.02, "预检测");
         if (Os.IS_WINDOWS) {
-            // `!` 与 `;` 在 Windows classpath 中有特殊含义（对应 PCL2 的检查）；Linux 上无此问题
+            // `!` 与 `;` 在 Windows classpath 中有特殊含义；Linux 上无此问题
             String root = mcRoot.toString();
             if (root.contains("!") || root.contains(";")) {
                 throw new IOException("游戏路径包含特殊字符 ! 或 ;，请移动 .minecraft 后重试");
@@ -60,7 +60,7 @@ public final class LaunchPipeline {
         report(onProgress, 0.15, "校验登录信息");
         if (options.login() == null) throw new IOException("尚未登录，请先完成登录");
 
-        // ---- 步骤 3：补全文件（权重 15，对应 DlClientFix）----
+        // ---- 步骤 3：补全文件 ----
         report(onProgress, 0.20, "检查客户端文件");
         FileCompleter.completeClient(version, mcRoot, null);
         report(onProgress, 0.30, "下载依赖库");
@@ -73,7 +73,7 @@ public final class LaunchPipeline {
         report(onProgress, 0.74, "解压 Natives");
         FileCompleter.extractNatives(version, mcRoot);
 
-        // ---- 步骤 5：老版本语言修复（对应 <=1.10 的 lang 大小写修正）----
+        // ---- 步骤 5：老版本语言修复（<=1.10 的 lang 大小写修正）----
         fixLegacyLang(version, options.gameDir());
 
         // ---- 步骤 6：生成启动参数（权重 2）----

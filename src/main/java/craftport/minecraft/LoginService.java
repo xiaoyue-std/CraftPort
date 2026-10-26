@@ -11,14 +11,14 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * 登录模块，移植自 ModLaunch.vb 的登录部分（McLoginServer / GetLegacyUuid / 微软六步登录）。
+ * 登录模块。
  * 支持：离线登录、微软登录（Device Code 流，client_id 需自行注册或用环境变量 CRAFTPORT_MS_CLIENT_ID）。
  */
 public final class LoginService {
 
     public enum Type { OFFLINE, MICROSOFT }
 
-    /** 登录结果（对应 McLoginData）。 */
+    /** 登录结果。 */
     public record LoginResult(String username, String uuid, String accessToken, Type type) {}
 
     private LoginService() {}
@@ -26,7 +26,7 @@ public final class LoginService {
     // ==================== 离线登录 ====================
 
     /**
-     * PCL2 的离线 UUID 算法（McLoginLegacyUuid）：
+     * 离线 UUID 算法（与 PCL2 的 McLoginLegacyUuid 兼容，来源标注见下）：
      * 32 位 = hex(用户名长度) 补 0 至 16 位 + hex(稳定 hashCode) 补 0 至 16 位，
      * 然后把第 12 位替换为 "3"、第 16 位替换为 "9"（原字符被丢弃），最后按 8-4-4-4-12 加连字符。
      * hashCode 为稳定哈希（h*31+c），避免依赖 JVM 的 String.hashCode 实现。
@@ -41,7 +41,7 @@ public final class LoginService {
                 + "-" + fixed.substring(16, 20) + "-" + fixed.substring(20);
     }
 
-    /** 稳定哈希（对应 MeloongCore 的 GetStableHashCode，Java 风格 h*31+c，32 位溢出语义）。 */
+    /** 稳定哈希（Java 风格 h*31+c，32 位溢出语义；来源同 PCL2 的 MeloongCore.GetStableHashCode）。 */
     private static long stableHash(String s) {
         int h = 0;
         for (int i = 0; i < s.length(); i++) {

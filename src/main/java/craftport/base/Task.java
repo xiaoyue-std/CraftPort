@@ -6,9 +6,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
- * 异步任务体系，移植自 Modules/Base/ModLoader.vb 的 LoaderBase / LoaderCombo。
+ * 异步任务体系：
  *  - Task：单个异步步骤，带状态机、进度、权重、取消
- *  - TaskChain：按序编排多个子任务，按权重汇总总进度（对应 LoaderCombo + ProgressWeight）
+ *  - TaskChain：按序编排多个子任务，按权重汇总总进度
  */
 public abstract class Task<T> {
 
@@ -65,7 +65,7 @@ public abstract class Task<T> {
 
     public boolean isCancelRequested() { return cancelRequested; }
 
-    /** 每个步骤中应周期调用以响应取消（对应 PCL 的 LoopCheck）。 */
+    /** 每个步骤中应周期调用以响应取消。 */
     protected void throwIfCanceled() {
         if (cancelRequested) throw new CanceledException();
     }
@@ -74,7 +74,7 @@ public abstract class Task<T> {
         public CanceledException() { super("任务已取消"); }
     }
 
-    /** 失败时展示给用户的提示（对应 LoaderBase 的 ErrorMessage）。 */
+    /** 失败时展示给用户的提示。 */
     public String errorMessage() { return null; }
 
     public T run() {
@@ -116,7 +116,7 @@ public abstract class Task<T> {
             this.result = result;
         }
 
-        /** 添加步骤；block=false 的步骤失败不阻断后续（对应 LoaderCombo 的 Block 参数）。 */
+        /** 添加步骤；block=false 的步骤失败不阻断后续。 */
         public Chain<T> then(Task<?> task, boolean block) {
             steps.add(task);
             blocks.add(block);
@@ -146,7 +146,7 @@ public abstract class Task<T> {
         }
     }
 
-    /** 函数包装任务（对应 LoaderTask）。 */
+    /** 函数包装任务。 */
     public static class Func<T> extends Task<T> {
         private final ThrowingFunction<T> fn;
         private final String name;
@@ -172,7 +172,7 @@ public abstract class Task<T> {
         }
     }
 
-    /** 线程池：对应 PCL 的多线程下载管理（NetManager），核心线程数取 CPU 核数。 */
+    /** 全局线程池（守护线程，核心线程数取 CPU 核数的两倍、至少 4） */
     public static final ExecutorService POOL =
             Executors.newFixedThreadPool(Math.max(4, Runtime.getRuntime().availableProcessors() * 2),
                     r -> {
@@ -186,7 +186,7 @@ public abstract class Task<T> {
         return POOL.submit(task::run);
     }
 
-    /** 简单并行执行 n 个单元工作（对应 LoaderDownload 的多线程分片）。 */
+    /** 简单并行执行 n 个单元工作（用于下载分片）。 */
     public static void parallel(int units, java.util.function.IntConsumer unit) throws InterruptedException {
         AtomicInteger done = new AtomicInteger();
         ExecutorService pool = POOL;

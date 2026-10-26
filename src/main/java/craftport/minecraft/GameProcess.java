@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * 游戏进程管理，移植自 ModLaunch.vb 的进程启动与日志监听。
+ * 游戏进程管理：进程接管、日志监听与退出码记录。
  * Linux 适配：不经过 cmd 包装，直接 ProcessBuilder；编码默认 UTF-8。
  */
 public final class GameProcess {
@@ -23,7 +23,7 @@ public final class GameProcess {
 
     private GameProcess() {}
 
-    /** 接管已启动的游戏进程（对应 McLaunchSteps 的日志监听与退出监听）。 */
+    /** 接管已启动的游戏进程（监听日志与退出）。 */
     public static void attach(Process process) {
         current = process;
         Thread logThread = new Thread(() -> {

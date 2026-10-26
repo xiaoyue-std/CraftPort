@@ -15,10 +15,10 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * CurseForge 模组搜索与下载（对应 ModDownload.vb / ResourceSearcher.vb 的 CurseForge 部分）。
+ * CurseForge 模组搜索与下载。
  *
- * 访问策略与 PCL2 的镜像规则一致：
- *  - API：api.curseforge.com → mod.mcimirror.top/curseforge 代理（无需 API key）
+ * 访问策略（走国内代理，无需 API key）：
+ *  - API：api.curseforge.com → mod.mcimirror.top/curseforge 代理
  *  - 文件：forgecdn 直链（mediafilez.forgecdn.net）优先，mcimirror 文件代理兜底
  */
 public final class CurseForge {
@@ -68,7 +68,7 @@ public final class CurseForge {
                 List.copyOf(versions), List.copyOf(required));
     }
 
-    /** CurseForge 内容分类（参考 PCL2 下载页：Mod/整合包/资源包/光影）。 */
+    /** CurseForge 内容分类。 */
     public enum Category {
         MOD(6L), MODPACK(4471L), RESOURCE_PACK(12L), SHADER(6552L);
         public final long classId;
@@ -123,7 +123,7 @@ public final class CurseForge {
     }
 
     /**
-     * 批量获取文件信息（对应 PCL2 的 POST /v1/mods/files，每批 100 个）。
+     * 批量获取文件信息（POST /v1/mods/files，每批 100 个）。
      * 整合包安装用它一次性拿到全部成员 mod 的文件名与大小。
      */
     public static List<FileInfo> filesBatch(List<Long> fileIds) throws IOException {

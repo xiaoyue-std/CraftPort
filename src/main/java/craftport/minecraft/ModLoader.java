@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 模组加载器安装引擎（对应 ModDownload.vb / ModInstall 的 Forge、Fabric、OptiFine 安装）。
+ * 模组加载器安装引擎：Fabric、Forge（1.13+）、OptiFine。
  *
  * 实现方式：
  *  - Fabric：直接下载 Fabric 官方 meta 生成的 profile json（含全部库声明），库在启动前自动补全

@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.function.BiConsumer;
 
 /**
- * Minecraft 服务端一键部署（对应 PCL2 未覆盖的服务端场景，本项目的主攻方向）。
+ * Minecraft 服务端一键部署（本项目的主攻方向）。
  *
  * 支持五种类型：
  *  - VANILLA：Mojang 官方服务端 jar（版本清单 → downloads.server，走 BMCLAPI 镜像）

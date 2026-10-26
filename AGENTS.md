@@ -4,8 +4,8 @@
 
 ## 项目是什么
 
-Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构版。
-**纯 CLI（`pcl.cli`）**。**主发展方向：Linux 服务端部署与管理。**
+Minecraft 客户端与服务端一体化 CLI（Java 21）。
+**纯 CLI（`craftport.cli`）**。**主发展方向：Linux 服务端部署与管理。**
 
 ## 当前进度（2026-10 快照）
 
@@ -21,7 +21,7 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
   主机资源监控（CPU/内存/磁盘）/部署版本级联菜单（系列→版本,全部正式版,<1.10 归远古），
   API 全流程实测
 - Java 管理：21 优先策略、Mojang 运行时自动下载（`ensureComponent`）、Linux 补执行权限
-- UI：雪山侧栏、自绘标题栏、磁贴下载页、动画（Animate.java），快照验证通过
+- UI：面板单页（web.html，中英/明暗切换），CLI 交互菜单
 
 ### Linux 实机验证（2026-10-03，Ubuntu 26.04）
 
@@ -41,8 +41,8 @@ Plain Craft Launcher 2（VB.NET/WPF，源码在 `../PCL/`）的 Java 21 重构�
 
 ```bash
 export JAVA_HOME="D:/Environment/JDK/jdk-21.0.10+7"
-MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未装全局
-"$MVN" -q package -DskipTests        # 产物: target/CraftPort.jar + CraftPort-1.0.0-cli.jar
+MVN="/c/Users/Ash/.m2/wrapper/dists/apache-maven-3.9.16-bin/5grr65jo27hi51sujmtcldfovl/apache-maven-3.9.16/bin/mvn"
+"$MVN" -q package -DskipTests        # 产物: target/CraftPort.jar
 ```
 
 ## 验证手段（改完必须验）
@@ -61,7 +61,7 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
 | 文件 | 职责 |
 |---|---|
 | `base/Os.java` | 平台分支的总开关（路径/分类器/分隔符）——**Linux 适配先看这里** |
-| `base/Config.java` | 全部设置项 + 键名常量（JSON 存储，键名对齐 PCL2） |
+| `base/Config.java` | 全部设置项 + 键名常量（JSON 存储） |
 | `base/Log.java` | 控制台开关 `setConsoleEnabled(false)`（CLI 静音核心中文日志） |
 | `net/Net.java` | 重试梯子(10s→30s→4s) + BMCLAPI URL 换算 `mirrorUrl`（**注意：本文件 JsonObject 一律全限定名**） |
 | `net/Downloader.java` | 分片下载 + SHA1 校验 + 镜像切换；`request()` 已设 60s 头超时 |
@@ -79,7 +79,6 @@ MVN="D:/Dev_Project/PCL/tools/apache-maven-3.9.9/bin/mvn"   # tools/ 下，未�
 class/modpack 链接（内存缓存），失败回退搜索页。中文搜索：关键词含 CJK 时经 mcmod 搜索页
 桥接英文名（标题「钠 (Sodium)」），前 3 个英文名到目标源检索融合，镜像限速下总时长可控 |
 | `cli/WebPanel.java` | HttpServer 路由；`server web` 需主线程 `CountDownLatch.await()` 保活（**System.exit 会杀面板**） |
-| `ui/Animate.java` | 全部 UI 动画（CSS effect 与 Java setEffect 冲突：启动按钮/磁贴的阴影由 Java 管） |
 
 ## 已踩过的坑（别再踩）
 
@@ -94,16 +93,15 @@ class/modpack 链接（内存缓存），失败回退搜索页。中文搜索：
 6. **rules 过滤语义**：有 os 规则时默认禁用，最后一条命中的 allow/disallow 决定结果
    （LWJGL 多平台条目会重复出现，过滤错就重复加载）。
 7. **继承版本（Fabric/Forge）的客户端 jar 在根版本文件夹**（`McVersion.rootName`）。
-8. **JavaFX 从 classpath 跑**：主类必须是不继承 Application 的 `pcl.Launcher`。
-9. **CLI 模式先 `Log.setConsoleEnabled(false)`**，终端输出全部由 CLI 自己用英文打印。
-10. **BMCLAPI 对 java-runtime all.json 返回空**，必须保留官方回退；`gameVersion` 服务端过滤
-    无效，文件列表要客户端过滤 + 内存缓存。
+8. **CLI 模式先 `Log.setConsoleEnabled(false)`**，终端输出全部由 CLI 自己用英文打印。
+9. **BMCLAPI 对 java-runtime all.json 返回空**，必须保留官方回退；`gameVersion` 服务端过滤
+   无效，文件列表要客户端过滤 + 内存缓存。
 
 ## 约定
 
 - CLI 终端输出**纯英文**（`CliMain`），核心模块日志中文（只进文件）
-- 面板/部署类新功能：逻辑放 `pcl.minecraft`，`pcl.cli`/`WebPanel` 只做展示层
-- 新设置项：键名沿用 PCL2 命名（如 `LaunchArgumentIndieV2`）
+- 面板/部署类新功能：逻辑放 `craftport.minecraft`，`craftport.cli`/`WebPanel` 只做展示层
+- 新设置项：沿用现有键名风格（如 `LaunchArgumentIndieV2`）
 - git：master 分支；提交信息中文一行式（现状 `89a9cd0` 面板、`ecbfe8a` 初始）
 - 测试脚本/临时代码放 `test/`，**不要**把 target/、日志、截图提交进 git
 

@@ -7,7 +7,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 /**
- * JSON 工具，替代 VB.NET 的 JsonObject（MeloongCore 提供）。
+ * JSON 工具：Gson 的薄封装，统一解析失败返回 null 与字段默认值语义。
  */
 public final class Json {
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
@@ -15,7 +15,7 @@ public final class Json {
 
     private Json() {}
 
-    /** 解析为 JsonObject，失败返回 null（对应 PCL 的 JsonCheck）。 */
+    /** 解析为 JsonObject，失败返回 null。 */
     public static JsonObject parseObject(String text) {
         if (text == null || text.isBlank()) return null;
         try {
