@@ -88,11 +88,11 @@ Linux/macOS 当场替换；Windows 运行中的 jar 被锁定（实测连 rename
   可精确到 sha：`/archive/{sha}.zip`。feed 不可达时退回 codeload 的 `Last-Modified` 头。
 - 新 jar 必须通过自检（跑 `status`，含 Gson 加载路径）才会落位；**未捕获异常时 JVM 仍可能返回 0**，
   所以退出码和输出都要检查。
-- 启动检查（`UpdateNotice`）：成功缓存 6 小时；失败/超时缓存 30 分钟（`ok=false`），
+- 启动检查（`UpdateNotice`）：成功缓存 6 小时；失败/超时缓存 60 分钟（`ok=false`），
   主线程最多等 2 秒，超时就写失败缓存，避免连续执行命令时每次都卡在同一个超时。
   `update --check` 绕过缓存、实时查询（不受抑制）。
 - `update-journal.txt` 记录目标提交；替换后首次启动比对 `build.properties` 提交来确认，
-  清理源码工作目录，但**保留 `CraftPort.jar.bak` 供回滚**。
+  清理源码工作目录，但**保留 `CraftPort.jar.bak` 供回滚**（每次更新覆盖，只留最近一次）。
 - 用户数据不参与更新：`config.json`、日志、游戏目录、`servers/` 全部在更新范围之外。
 - `--version` 是自检用的隐藏命令（输出 `BuildInfo.label()`），源码构建显示 `dev`。
 

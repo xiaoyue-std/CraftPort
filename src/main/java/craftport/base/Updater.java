@@ -261,8 +261,7 @@ public final class Updater {
             Path bak = currentJar().resolveSibling("CraftPort.jar.bak");
             if (Files.exists(bak)) {
                 System.out.println("  Previous version kept at " + bak.getFileName() + " for rollback.");
-            }
-            deleteRecursively(workDir());
+            }            deleteRecursively(workDir());
             Files.deleteIfExists(journal);
             // 更新检查缓存里的「本地版本」已过期，删掉以便下次重新比对
             Files.deleteIfExists(Os.dataDir().resolve("update-check.txt"));
@@ -328,9 +327,10 @@ public final class Updater {
     /**
      * 落位：新 jar 先写为 CraftPort.jar.new。
      * applyNow 时尝试当场替换（Linux/macOS 上运行中的 jar 可以 rename 覆盖；
-     * Windows 上文件被占用会失败，此时保留 .new 交给 run 脚本在下次启动前替换）。
+     * Windows 上文件被占用会失败，此时保留 .new 交给 run 脚本或退出后脚本替换）。
+     * 备份固定为 CraftPort.jar.bak 并被覆盖，因此始终只保留最近一次可回滚的版本。
      *
-     * @return true = 已当场替换；false = 仅暂存，等待 run 脚本应用
+     * @return true = 已当场替换；false = 仅暂存，等待脚本替换
      */
     public static boolean install(BuildResult result, InstallPlan plan, boolean applyNow) throws IOException {
         Files.createDirectories(plan.newJar().getParent());

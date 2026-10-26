@@ -23,7 +23,7 @@ public final class UpdateNotice {
     /** 检查成功的缓存时长。 */
     private static final long CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L;
     /** 检查超时/失败后的冷却时长：短时间内不再尝试，避免每次启动都卡在同一个超时上。 */
-    private static final long FAILURE_COOLDOWN_MS = 30 * 60 * 1000L;
+    private static final long FAILURE_COOLDOWN_MS = 60 * 60 * 1000L;
     /** 启动时最多等待检查的时间，超时则照常启动（后台线程是守护线程，随进程退出）。 */
     private static final long STARTUP_WAIT_MS = 2000;
 
@@ -61,22 +61,22 @@ public final class UpdateNotice {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        // 本次启动超时：进程退出前记一笔失败缓存，随后 30 分钟内不再尝试，
+        // 本次启动超时：进程退出前记一笔失败缓存，随后 60 分钟内不再尝试，
         // 这样连续执行命令时不会每次都等满超时（命中缓存后立即返回）。
         if (RESULT.get() == null) {
             writeState(new State(System.currentTimeMillis(), false, false, BuildInfo.commit(), "", ""));
         }
     }
 
-    /** 缓存是否仍可用于本次启动：冷却期内，且要么上次失败（仅用于抑制重试），
-     *  要么成功且与当前构建对应（源码构建无法比对，不展示提示）。 */
+    /** 缓存是否仍可用于本次启动：冷却期内即可；成功结果对 dev 构建同样有效
+     *  （dev 只是不展示提示，不必每次启动都重新联网）。 */
     private static boolean usableCache(State s) {
         if (s == null) return false;
         long age = System.currentTimeMillis() - s.time();
         if (!s.ok()) return age <= FAILURE_COOLDOWN_MS;
         if (age > CHECK_INTERVAL_MS) return false;
-        if (BuildInfo.isDev()) return false;            // dev 构建不展示提示，无需用缓存
-        return BuildInfo.commit().equals(s.local());
+        // 正式构建还要求缓存对应的是当前提交（同版本不重复查询）
+        return BuildInfo.isDev() || BuildInfo.commit().equals(s.local());
     }
 
     /** 实际查询；成功与失败都写入缓存并发布给主线程。 */
