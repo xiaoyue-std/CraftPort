@@ -113,7 +113,7 @@ public final class JavaManager {
             JavaRuntime rt = detect(exe);
             if (rt != null && !containsSame(cache, rt)) cache.add(rt);
         }
-        // 排序：精确的 Java 21 最优先（对应"优先使用 Java 21"），
+        // 排序：精确的 Java 21 最优先，
         // 其次按与 21 的距离，距离相同取更高版本
         cache.sort(Comparator
                 .comparingInt((JavaRuntime rt) -> rt.major() == 21 ? 0 : 1)
@@ -144,7 +144,7 @@ public final class JavaManager {
     }
 
     /**
-     * 检测单个 java 可执行文件，对应 ModJava 的 JRE 检测：
+     * 检测单个 java 可执行文件：
      * 运行 java -XshowSettings:properties -version，正则解析 java.version / file.encoding / native.encoding。
      */
     public static JavaRuntime detect(Path executable) {
@@ -187,7 +187,7 @@ public final class JavaManager {
     // ==================== 版本要求规则 ====================
 
     /**
-     * 计算 MC 版本所需的 Java 版本范围（对应 GetJavaRequirement）。
+     * 计算 MC 版本所需的 Java 版本范围。
      * 返回 [min, max]，max 为 Integer.MAX_VALUE 表示无上限。
      */
     public static int[] requirement(McVersion version) {
@@ -223,7 +223,7 @@ public final class JavaManager {
     // ==================== 选择 ====================
 
     /**
-     * 选择用于启动的 Java（对应 VersionArgumentJavaV2 的策略 0=自动 / 3=强制指定）。
+     * 选择用于启动的 Java（策略 0=自动 / 3=强制指定）。
      * versionJavaSetting：版本级设置的 Java 路径，为空则自动选择。
      */
     public static JavaRuntime pick(McVersion version, String versionJavaSetting) throws IOException {

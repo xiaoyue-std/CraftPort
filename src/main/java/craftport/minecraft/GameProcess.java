@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * 游戏进程管理：进程接管、日志监听与退出码记录。
+ * 游戏进程管理：接管已启动的进程，转发日志并记录退出码。
  * Linux 适配：不经过 cmd 包装，直接 ProcessBuilder；编码默认 UTF-8。
  */
 public final class GameProcess {
@@ -19,7 +19,6 @@ public final class GameProcess {
     private static volatile Process current;
     private static final List<String> logBuffer = java.util.Collections.synchronizedList(new ArrayList<>());
     private static final List<Consumer<String>> logListeners = new ArrayList<>();
-    private static volatile int lastExitCode = Integer.MIN_VALUE;
 
     private GameProcess() {}
 
@@ -53,9 +52,9 @@ public final class GameProcess {
         // 游戏退出监听
         Thread exitThread = new Thread(() -> {
             try {
-                lastExitCode = current.waitFor();
-                appendLog("游戏已退出，退出码 " + lastExitCode);
-                Log.info("游戏进程结束，退出码 " + lastExitCode);
+                int code = current.waitFor();
+                appendLog("游戏已退出，退出码 " + code);
+                Log.info("游戏进程结束，退出码 " + code);
             } catch (InterruptedException ignored) {}
         }, "CraftPort-GameExit");
         exitThread.setDaemon(true);
@@ -71,31 +70,11 @@ public final class GameProcess {
         for (Consumer<String> l : new ArrayList<>(logListeners)) l.accept(line);
     }
 
+    /** 注册日志监听；注册时先回放缓冲区内的历史行。 */
     public static void addLogListener(Consumer<String> listener) {
         logListeners.add(listener);
         synchronized (logBuffer) {
             for (String line : logBuffer) listener.accept(line);
         }
     }
-
-    public static void removeLogListener(Consumer<String> listener) {
-        logListeners.remove(listener);
-    }
-
-    /** 是否正在运行。 */
-    public static boolean isRunning() {
-        Process p = current;
-        return p != null && p.isAlive();
-    }
-
-    /** 强制结束游戏（对应 McLaunchKill）。 */
-    public static void kill() {
-        Process p = current;
-        if (p != null && p.isAlive()) {
-            p.destroy();
-            Log.info("已发送游戏结束信号");
-        }
-    }
-
-    public static int lastExitCode() { return lastExitCode; }
 }

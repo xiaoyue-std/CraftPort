@@ -51,7 +51,7 @@ public final class LoginService {
     }
 
     public static LoginResult offlineLogin(String username) {
-        if (username == null || username.isBlank()) throw new IllegalArgumentException("用户名不能为空");
+        if (username == null || username.isBlank()) throw new IllegalArgumentException("Username must not be blank");
         String uuid = offlineUuid(username);
         return new LoginResult(username, uuid, uuid, Type.OFFLINE);
     }
@@ -71,21 +71,42 @@ public final class LoginService {
 
     /** 用已缓存的刷新令牌直接换取登录信息；失败返回 null。 */
     public static LoginResult tryRefresh() {
-        String refreshToken = Config.cacheRefreshToken;
-        if (refreshToken == null || refreshToken.isBlank()) return null;
+        if (!hasCachedMicrosoftSession()) return null;
         try {
-            JsonObject token = Json.parseObject(Net.postForm(TOKEN_URL, Net.form(
-                    "client_id", clientId(),
-                    "refresh_token", refreshToken,
-                    "grant_type", "refresh_token")));
-            if (token == null || !token.has("access_token")) return null;
-            if (token.has("refresh_token")) Config.cacheRefreshToken = token.get("refresh_token").getAsString();
-            String accessToken = token.get("access_token").getAsString();
-            return finishMicrosoft(accessToken);
+            return refresh();
         } catch (Exception e) {
             Log.warn("刷新微软登录失败: " + e.getMessage());
             return null;
         }
+    }
+
+    /** 是否缓存了微软会话（刷新令牌 + 应用 ID 均已配置）。 */
+    public static boolean hasCachedMicrosoftSession() {
+        return Config.cacheRefreshToken != null && !Config.cacheRefreshToken.isBlank()
+                && !clientId().isBlank();
+    }
+
+    /**
+     * 用缓存的刷新令牌强制刷新（失败抛异常）。用于令牌过期后的重试；
+     * 成功后会更新 config.json 中的刷新令牌。
+     */
+    public static LoginResult refresh() throws IOException {
+        String refreshToken = Config.cacheRefreshToken;
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IOException("No cached Microsoft refresh token - run login --microsoft first");
+        }
+        JsonObject token = Json.parseObject(Net.postForm(TOKEN_URL, Net.form(
+                "client_id", clientId(),
+                "refresh_token", refreshToken,
+                "grant_type", "refresh_token")));
+        if (token == null || !token.has("access_token")) {
+            throw new IOException("Microsoft token refresh failed - run login --microsoft again");
+        }
+        if (token.has("refresh_token")) {
+            Config.cacheRefreshToken = token.get("refresh_token").getAsString();
+        }
+        Config.save();
+        return finishMicrosoft(token.get("access_token").getAsString());
     }
 
     /** 完整的设备码登录流程，onDeviceCode 回调展示 verification_url 与 user_code。 */
@@ -93,14 +114,14 @@ public final class LoginService {
             throws IOException, InterruptedException {
         String clientId = clientId();
         if (clientId.isBlank()) {
-            throw new IOException("未配置微软登录应用 ID。请先在 Azure 注册应用并设置环境变量 CRAFTPORT_MS_CLIENT_ID，"
-                    + "或使用离线登录。");
+            throw new IOException("No Microsoft app ID configured. Register an Azure app and set the CRAFTPORT_MS_CLIENT_ID "
+                    + "environment variable, or use offline login (login <username>).");
         }
         // 第 1 步：获取设备码
         JsonObject deviceCode = Json.parseObject(Net.postForm(DEVICE_CODE_URL, Net.form(
                 "client_id", clientId, "scope", SCOPE)));
         if (deviceCode == null || !deviceCode.has("user_code")) {
-            throw new IOException("获取设备码失败");
+            throw new IOException("Failed to obtain a device code");
         }
         String userCode = deviceCode.get("user_code").getAsString();
         String verificationUrl = Json.str(deviceCode, "verification_uri", "https://www.microsoft.com/link");
@@ -121,10 +142,10 @@ public final class LoginService {
             if (resp != null && resp.has("error")) {
                 String err = resp.get("error").getAsString();
                 if (err.equals("authorization_pending")) continue;
-                throw new IOException("微软登录失败: " + Json.str(resp, "error_description", err));
+                throw new IOException("Microsoft login failed: " + Json.str(resp, "error_description", err));
             }
         }
-        if (token == null) throw new IOException("设备码已过期，请重试");
+        if (token == null) throw new IOException("The device code expired - please retry");
         if (token.has("refresh_token")) {
             Config.cacheRefreshToken = token.get("refresh_token").getAsString();
             Config.save();
@@ -140,7 +161,7 @@ public final class LoginService {
                         "RpsTicket", "d=" + accessToken),
                 "RelyingParty", "http://auth.xboxlive.com",
                 "TokenType", "JWT"))));
-        if (xbl == null || !xbl.has("Token")) throw new IOException("Xbox Live 登录失败");
+        if (xbl == null || !xbl.has("Token")) throw new IOException("Xbox Live authentication failed");
         String xblToken = xbl.get("Token").getAsString();
         String uhs = "";
         if (xbl.has("DisplayClaims") && xbl.get("DisplayClaims").isJsonObject()) {
@@ -159,9 +180,9 @@ public final class LoginService {
         if (xsts == null || !xsts.has("Token")) {
             long code = xsts != null && xsts.has("XErr") ? Json.longOf(xsts, "XErr", 0) : 0;
             String hint;
-            if (code == 2148916233L) hint = "该微软账号没有 Xbox 档案";
-            else if (code >= 2148916235L && code <= 2148916238L) hint = "Xbox 服务拒绝登录（地区限制或未成年账号）";
-            else hint = "Xbox 安全令牌获取失败 (XErr=" + code + ")";
+            if (code == 2148916233L) hint = "This Microsoft account has no Xbox profile";
+            else if (code >= 2148916235L && code <= 2148916238L) hint = "Xbox denied the sign-in (region restriction or child account)";
+            else hint = "Failed to obtain an Xbox security token (XErr=" + code + ")";
             throw new IOException(hint);
         }
         String xstsToken = xsts.get("Token").getAsString();
@@ -169,20 +190,20 @@ public final class LoginService {
         // 第 4 步：换取 Minecraft 访问令牌
         JsonObject mcAuth = Json.parseObject(Net.postJson(MC_AUTH_URL, Json.GSON_COMPACT.toJson(Map.of(
                 "identityToken", "XBL3.0 x=" + uhs + ";" + xstsToken))));
-        if (mcAuth == null || !mcAuth.has("access_token")) throw new IOException("Minecraft 令牌换取失败");
+        if (mcAuth == null || !mcAuth.has("access_token")) throw new IOException("Failed to exchange the Minecraft access token");
         String mcToken = mcAuth.get("access_token").getAsString();
 
         // 第 5 步：验证游戏持有
         JsonObject entitlement = Json.parseObject(Net.get(MC_ENTITLEMENTS + "?access_token=" + mcToken));
         if (entitlement == null || !entitlement.has("items")
                 || entitlement.getAsJsonArray("items").size() == 0) {
-            throw new IOException("该账号未购买 Minecraft: Java Edition");
+            throw new IOException("This account does not own Minecraft: Java Edition");
         }
 
         // 第 6 步：档案
         JsonObject profile = Json.parseObject(Net.get(MC_PROFILE,
                 java.util.Map.of("Authorization", "Bearer " + mcToken)));
-        if (profile == null || !profile.has("id")) throw new IOException("获取档案失败");
+        if (profile == null || !profile.has("id")) throw new IOException("Failed to fetch the Minecraft profile");
         return new LoginResult(profile.get("name").getAsString(), profile.get("id").getAsString(),
                 mcToken, Type.MICROSOFT);
     }

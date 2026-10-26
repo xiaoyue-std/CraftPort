@@ -246,7 +246,7 @@ public final class Downloader {
         Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING);
     }
 
-    /** 批量并行下载（对应 LoaderDownload）。重复目标文件会先去重（LWJGL 等多平台条目会重复出现）。 */
+    /** 批量并行下载：重复目标文件会先去重（LWJGL 等多平台条目会重复出现）。 */
     public static void downloadBatch(List<DownloadItem> items, java.util.function.IntConsumer onProgress)
             throws IOException {
         // 按目标路径去重，保留第一条

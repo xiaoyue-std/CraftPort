@@ -37,7 +37,7 @@ public final class ArgsBuilder {
 
     // ==================== 内存 ====================
 
-    /** 自动内存分配（对应 GetRam 的简化实现）：物理内存的 40%，限 1~8GB。 */
+    /** 自动内存分配：物理内存的 40%，限 1~8GB。 */
     public static int autoRamMb() {
         long totalMb = ((com.sun.management.OperatingSystemMXBean)
                 java.lang.management.ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize()
@@ -57,7 +57,7 @@ public final class ArgsBuilder {
 
     // ==================== JVM 参数 ====================
 
-    /** 构建 JVM 参数（对应 VersionArgumentJvmV2）。 */
+    /** 构建 JVM 参数。 */
     public static List<String> buildJvmArgs(LaunchOptions o) {
         List<String> args = new ArrayList<>();
         McVersion version = o.version();
@@ -65,7 +65,7 @@ public final class ArgsBuilder {
         int ram = ramMb(version);
         args.add("-Xmx" + ram + "m");
 
-        // GC 优化（对应 LaunchAdvanceGC：0 无 / 1 G1 / 4 优化 G1 / 5 ZGC）
+        // GC 优化（LaunchAdvanceGC：0 无 / 1 G1 / 4 优化 G1 / 5 ZGC）
         int gc = Config.getInt(Config.LAUNCH_ADVANCE_GC, 4);
         if (gc == 1) args.add("-XX:+UseG1GC");
         else if (gc == 4) {
@@ -83,7 +83,7 @@ public final class ArgsBuilder {
             if (javaMajor >= 24) args.add("-XX:+UseCompactObjectHeaders");
         }
 
-        // Log4j 防御（对应 ModLaunch 的固定注入）
+        // Log4j 防御（固定注入）
         args.add("-Dlog4j2.formatMsgNoLookups=true");
 
         // 编码参数（Linux 默认 UTF-8，但保留对老 JVM 的兼容逻辑）
@@ -103,7 +103,7 @@ public final class ArgsBuilder {
             args.add("-Dstderr.encoding=" + encoding);
         }
 
-        // 用户自定义 JVM 参数（对应 LaunchAdvanceJvm）
+        // 用户自定义 JVM 参数（LaunchAdvanceJvm）
         String userJvm = Config.vStr(version.name(), "VersionAdvanceJvm",
                 Config.get(Config.LAUNCH_ADVANCE_JVM, Config.DEFAULT_JVM_ARGS));
         for (String arg : userJvm.trim().split("\\s+")) {
@@ -115,7 +115,7 @@ public final class ArgsBuilder {
         if (jvmArgs != null) {
             appendRuleArguments(args, jvmArgs, o);
         } else {
-            // 旧版固定参数（对应旧版 JVM 参数；HeapDumpPath 的 Windows 特技在 Linux 上无意义，改为常规路径）
+            // 旧版固定参数（HeapDumpPath 的 Windows 特技在 Linux 上无意义，改为常规路径）
             args.add("-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump");
             args.add("-Djava.library.path=" + o.nativesDir());
             args.add("-cp");
@@ -127,7 +127,7 @@ public final class ArgsBuilder {
 
     // ==================== 游戏参数 ====================
 
-    /** 构建游戏参数（对应 VersionArgumentGameV2）。 */
+    /** 构建游戏参数。 */
     public static List<String> buildGameArgs(LaunchOptions o) {
         List<String> args = new ArrayList<>();
         McVersion version = o.version();
@@ -140,7 +140,7 @@ public final class ArgsBuilder {
             for (String arg : version.oldArguments().split("\\s+")) {
                 if (!arg.isBlank()) args.add(arg);
             }
-            // 强制追加窗口尺寸（对应旧版追加 --height/--width）
+            // 强制追加窗口尺寸（旧版 json 不带占位符）
             args.add("--height");
             args.add(String.valueOf(o.windowHeight()));
             args.add("--width");
@@ -174,7 +174,7 @@ public final class ArgsBuilder {
             }
         }
 
-        // 自定义版本信息（对应 --versionType）
+        // 自定义版本信息（--versionType）
         String versionType = Config.vStr(version.name(), "VersionArgumentInfo",
                 "Minecraft " + version.mcVersion());
         if (versionType != null && !versionType.isBlank()) {

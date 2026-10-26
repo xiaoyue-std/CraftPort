@@ -73,7 +73,7 @@ public final class InstallService {
         Path folder = mcRoot.resolve("versions").resolve(versionId);
         Path jsonFile = folder.resolve(versionId + ".json");
         Files.createDirectories(folder);
-        // 版本 json 优先镜像（对应 launcher/mojang meta 的镜像规则）
+        // 版本 json 优先镜像（与 launcher meta 的镜像规则一致）
         String url = target.url();
         String mirror = Net.mirrorUrl(url);
         if (mirror != null && craftport.base.Config.getInt(craftport.base.Config.TOOL_DOWNLOAD_SOURCE, 1) != 2) {

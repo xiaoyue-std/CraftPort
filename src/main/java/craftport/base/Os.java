@@ -70,7 +70,7 @@ public final class Os {
         return Path.of("/tmp", "CraftPort");
     }
 
-    /** 存放 authlib-injector 等辅助文件的纯路径，对应 PathPure。Linux 下无特殊字符限制，直接用数据目录。 */
+    /** 存放 authlib-injector 等辅助文件的纯路径。Linux 下无特殊字符限制，直接用数据目录。 */
     public static Path pureDir() {
         return dataDir();
     }

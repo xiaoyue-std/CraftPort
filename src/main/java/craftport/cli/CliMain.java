@@ -121,8 +121,11 @@ public final class CliMain {
                                 client-pack zip; or --server --dir <dir> for servers)
                                 [--pick N] [--file N]
                   launch <version> [--username u] [--server host[:port]]
+                                [--offline | --microsoft]
                                 [--no-isolation] [--no-wait]
-                                                Launch a version (offline login)
+                                                Launch a version. Logs in with the cached
+                                                Microsoft session when available, otherwise
+                                                offline (see 'login')
                   server deploy <mcVersion> [--type vanilla|fabric|forge|neoforge|paper]
                                 [--dir path] [--accept-eula] [--no-auto-java]
                                                 One-click server deployment (jar + eula +
@@ -137,6 +140,7 @@ public final class CliMain {
                   server service install [--dir path]
                                                 Install the systemd unit (Linux only)
                   login <username>              Save offline login credentials
+                  login --microsoft             Sign in with a Microsoft account (device code)
                   dir [path]                    Show or set the game (.minecraft) directory
                   runtimes                      List detected Java runtimes
                   status                        Show current configuration
@@ -404,7 +408,7 @@ public final class CliMain {
     }
 
     private static int cmdLaunch(String[] args) throws Exception {
-        if (args.length < 1) throw new IllegalArgumentException("Usage: launch <version> [--username u] [--server host[:port]] [--no-isolation] [--no-wait]");
+        if (args.length < 1) throw new IllegalArgumentException("Usage: launch <version> [--username u] [--server host[:port]] [--offline|--microsoft] [--no-isolation] [--no-wait]");
         Map<String, String> flags = parseFlags(args, 1);
         String versionName = args[0];
 
@@ -412,11 +416,14 @@ public final class CliMain {
                 McFolder.selectedRoot().resolve("versions").resolve(versionName), versionName);
         if (version == null) throw new IllegalArgumentException("Version not found or json corrupted: " + versionName);
 
-        String username = flags.getOrDefault("username", Config.cacheUsername);
-        if (username == null || username.isBlank()) {
+        String mcRootDir = Config.get(Config.CACHE_MINECRAFT_DIR, "");
+        String username = flags.getOrDefault("username",
+                mcRootDir.isBlank() ? "" : Config.vStr(versionName, "VersionArgumentUserName", ""));
+        if (username.isBlank()) username = Config.cacheUsername;
+        if (username.isBlank()) {
             throw new IllegalArgumentException("No username. Run 'login <name>' first or pass --username <name>.");
         }
-        LoginService.LoginResult login = LoginService.offlineLogin(username);
+        LoginService.LoginResult login = resolveLogin(flags, username);
 
         boolean isolation = flags.containsKey("no-isolation")
                 ? false
@@ -432,7 +439,8 @@ public final class CliMain {
                 false,
                 flags.get("server"));
 
-        System.out.println("Launching " + versionName + " as " + username
+        System.out.println("Launching " + versionName + " as " + login.username()
+                + (login.type() == LoginService.Type.MICROSOFT ? " (Microsoft)" : " (offline)")
                 + (isolation ? " (version isolation)" : "") + " ...");
         GameLogForwarder.forward();
         long t0 = System.currentTimeMillis();
@@ -451,8 +459,46 @@ public final class CliMain {
         return code == 0 ? 0 : 1;
     }
 
-    private static void cmdLogin(String[] args) {
-        if (args.length < 1) throw new IllegalArgumentException("Usage: login <username>");
+    /** 登录方式：--microsoft / --offline 显式指定，默认为微软（缓存可刷新时）否则离线。 */
+    private static LoginService.LoginResult resolveLogin(Map<String, String> flags, String username)
+            throws Exception {
+        if (flags.containsKey("offline")) return LoginService.offlineLogin(username);
+        if (flags.containsKey("microsoft")) return microsoftLogin();
+        LoginService.LoginResult cached = LoginService.tryRefresh();
+        if (cached != null) {
+            if (username != null && !username.isBlank()
+                    && !username.equalsIgnoreCase(cached.username())) {
+                System.out.println("Note: using Microsoft account " + cached.username()
+                        + " (cached session); pass --offline to launch as " + username + ".");
+            }
+            return cached;
+        }
+        return LoginService.offlineLogin(username);
+    }
+
+    /** 微软 Device Code 登录：打印验证地址与码，轮询完成后写入登录缓存。 */
+    private static LoginService.LoginResult microsoftLogin() throws Exception {
+        System.out.println("Microsoft login (device code flow).");
+        LoginService.LoginResult r = LoginService.microsoftLogin((url, code) -> {
+            System.out.println();
+            System.out.println("  Open this URL in a browser: " + url);
+            System.out.println("  Enter the code: " + cyan(code));
+            System.out.println("  Waiting for authorization (Ctrl+C to cancel) ...");
+        });
+        Config.cacheUsername = r.username();
+        Config.cacheUuid = r.uuid();
+        Config.cacheAccessToken = r.accessToken();
+        Config.save();
+        System.out.println(green("Logged in as " + r.username() + " (Microsoft, UUID " + r.uuid() + ")."));
+        return r;
+    }
+
+    private static void cmdLogin(String[] args) throws Exception {
+        if (args.length > 0 && ("--microsoft".equals(args[0]) || "-m".equals(args[0]))) {
+            microsoftLogin();
+            return;
+        }
+        if (args.length < 1) throw new IllegalArgumentException("Usage: login <username> [--offline] | login --microsoft");
         LoginService.LoginResult r = LoginService.offlineLogin(args[0]);
         Config.cacheUsername = r.username();
         Config.cacheUuid = r.uuid();
@@ -484,7 +530,8 @@ public final class CliMain {
 
     private static void cmdStatus() {
         System.out.println("Game directory : " + McFolder.selectedRoot());
-        System.out.println("Username       : " + (Config.cacheUsername.isBlank() ? "(not logged in)" : Config.cacheUsername));
+        System.out.println("Username       : " + (Config.cacheUsername.isBlank() ? "(not logged in)" : Config.cacheUsername)
+                + (LoginService.hasCachedMicrosoftSession() ? " (Microsoft session cached)" : ""));
         System.out.println("Versions       : " + McFolder.scanVersions(McFolder.selectedRoot()).size());
         System.out.println("Download source: " + Config.getInt(Config.TOOL_DOWNLOAD_SOURCE, 1)
                 + " (0=mirror, 1=auto, 2=official)");

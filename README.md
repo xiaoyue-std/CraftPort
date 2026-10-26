@@ -3,7 +3,7 @@
 Minecraft 客户端与服务端一体化命令行工具。**纯 CLI、单 jar（约 0.5MB）、除 Gson 外零运行时依赖**。
 下载走 BMCLAPI / MCIMirror 镜像，国内网络环境开箱即用。
 
-- **客户端**：版本安装、Fabric / Forge / OptiFine、整合包、模组 / 资源包 / 光影 / 数据包（CurseForge + Modrinth 双源）、离线登录、一键启动
+- **客户端**：版本安装、Fabric / Forge / OptiFine、整合包、模组 / 资源包 / 光影 / 数据包（CurseForge + Modrinth 双源）、离线 / 微软登录、一键启动
 - **服务端（主方向）**：vanilla / Fabric / Forge / NeoForge / Paper 一键部署、整合包服务端化、配套客户端包分发、systemd 常驻、Web 管理面板、server.properties 编辑、SLP 在线人数查询、下载限速
 - **跨平台**：Windows / Linux / macOS，无头环境可运行
 
@@ -49,10 +49,16 @@ modpack search <query> --mc 1.20.6            # 先搜索再选 --pick N
 # → 生成配套客户端包（--start 可选立即启动）
 modpack deploy "Fabulously Optimized" --mc 1.20.6 --accept-eula
 
-# 启动（离线登录）
-login Steve
-launch 1.20.6 --username Steve --server play.example.com --no-wait
+# 启动：默认使用缓存的微软会话，没有则离线登录
+login Steve                  # 离线登录（写入 UUID 缓存）
+login --microsoft            # 微软登录（设备码流）
+launch 1.20.6 --server play.example.com --no-wait
+launch 1.20.6 --offline      # 强制离线登录
 ```
+
+微软登录需要自备 Azure 应用 ID：设置环境变量 `CRAFTPORT_MS_CLIENT_ID`
+（或 `config.json` 的 `CacheClientId`），`login --microsoft` 会打印验证链接与
+一次性代码，完成后刷新令牌保存在 `config.json`，`launch` 自动刷新访问令牌。
 
 `mods/modpack` 的 `--pick N` / `--file N` 用于选择列表中的第 N 项（0 起）；
 `--type mod|resourcepack|shader|datapack` 决定内容落位到

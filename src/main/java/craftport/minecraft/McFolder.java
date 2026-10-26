@@ -34,7 +34,7 @@ public final class McFolder {
         Config.set(Config.CACHE_MINECRAFT_DIR, p.toString());
     }
 
-    /** 可用的 .minecraft 目录列表（对应 ModMinecraft 的目录发现）。 */
+    /** 可用的 .minecraft 目录列表。 */
     public static List<Path> availableRoots() {
         List<Path> list = new ArrayList<>();
         Path cur = selectedRoot();
@@ -98,11 +98,6 @@ public final class McFolder {
         McVersion.distinct(versions);
         McVersion.sort(versions);
         return versions;
-    }
-
-    /** 列表为空时的友好提示。 */
-    public static String emptyHint() {
-        return "未找到任何版本，请先在「下载」页安装游戏，或调整设置中的游戏目录。";
     }
 
     private McFolder() {}

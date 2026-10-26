@@ -27,7 +27,7 @@ public final class FileCompleter {
 
     private FileCompleter() {}
 
-    /** 下载客户端 jar（对应 DlClient）。 */
+    /** 下载客户端 jar。 */
     public static void completeClient(McVersion version, Path mcRoot, int[] progressSlot) throws IOException {
         Path jar = version.clientJar();
         if (Files.exists(jar) && Files.size(jar) > 0) return;
@@ -37,7 +37,7 @@ public final class FileCompleter {
                 version.name + " 客户端"), null);
     }
 
-    /** 下载全部 libraries（含各平台 natives，对应 DlMod / 库补全）。 */
+    /** 下载全部 libraries（含各平台 natives）。 */
     public static void completeLibraries(McVersion version, Path mcRoot) throws IOException {
         Path librariesDir = mcRoot.resolve("libraries");
         List<Library> libs = version.libraries();
@@ -56,7 +56,7 @@ public final class FileCompleter {
         Downloader.downloadBatch(items, null);
     }
 
-    /** 下载资源索引与资源对象（对应 DlClientAssetIndexGet / 资源对象下载）。 */
+    /** 下载资源索引与资源对象。 */
     public static void completeAssets(McVersion version, Path mcRoot, Path gameDir) throws IOException {
         Path assetsDir = mcRoot.resolve("assets");
         Files.createDirectories(assetsDir.resolve("indexes"));
@@ -135,7 +135,7 @@ public final class FileCompleter {
     }
 
     /**
-     * 解压 natives（对应 McLaunchNatives）：
+     * 解压 natives：
      * 只解压当前平台后缀的本体文件（.dll/.so/.dylib），已存在且同大小则跳过，最后清理多余文件。
      */
     public static void extractNatives(McVersion version, Path mcRoot) throws IOException {

@@ -26,7 +26,7 @@ public final class Config {
     /** 最近一次选择的版本。 */
     public static String cacheVersion = "";
 
-    /** 自定义游戏目录，格式 名称>路径|名称>路径（对应 LaunchFolders）。 */
+    /** 自定义游戏目录，格式 名称>路径|名称>路径。 */
     public static String launchFolders = "";
 
     static { load(); }
@@ -66,7 +66,7 @@ public final class Config {
         }
     }
 
-    // ---- 全局设置项读写（对应 Setup.Get/Set）----
+    // ---- 全局设置项读写 ----
     public static synchronized String get(String key, String def) { return Json.str(global, key, def); }
     public static synchronized int getInt(String key, int def) { return Json.intOf(global, key, def); }
     public static synchronized boolean getBool(String key, boolean def) { return Json.bool(global, key, def); }
@@ -137,12 +137,9 @@ public final class Config {
     /** 内存：0 自动 / 1 手动（MB）。 */
     public static final String LAUNCH_RAM_TYPE = "LaunchRamType";
     public static final String LAUNCH_RAM_CUSTOM = "LaunchRamCustom";
-    /** 窗口：0 全屏 / 1 固定大小 / 2 随窗口缩放（默认）。 */
-    public static final String LAUNCH_ARGUMENT_WINDOW_TYPE = "LaunchArgumentWindowType";
+    /** 游戏窗口固定尺寸（像素）。 */
     public static final String LAUNCH_ARGUMENT_WIDTH = "LaunchArgumentWidth";
     public static final String LAUNCH_ARGUMENT_HEIGHT = "LaunchArgumentHeight";
-    /** 启动器可见性：0 关闭启动器 / 2 隐藏 / 4 最小化 / 5 不变。 */
-    public static final String LAUNCH_ARGUMENT_VISIBLE = "LaunchArgumentVisible";
     /** 选择的 .minecraft 目录。 */
     public static final String CACHE_MINECRAFT_DIR = "CacheMinecraftDir";
     /** 服务端默认内存（MB），面板启动与部署脚本默认值。 */

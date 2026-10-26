@@ -57,13 +57,20 @@ java -cp "target/CraftPort.jar;test" LoaderTest <gameDir> <mc> <fabric|forge|opt
 
 ```
 craftport.cli      CliMain（入口/子命令/交互菜单）、WebPanel（JDK HttpServer + JSON API）
-craftport.minecraft  全部领域逻辑：安装/加载器/启动/整合包/模组/服务端
+craftport.minecraft  全部领域逻辑：安装/加载器/启动/整合包/模组/服务端/登录
 craftport.net      Net（重试梯子 + BMCLAPI 镜像换算）、Downloader（分片下载）
-craftport.base     Os（平台适配）、Config（全局+版本级设置）、Log、Task（异步编排）、Json
+craftport.base     Os（平台适配）、Config（全局+版本级设置）、Log、Task（线程池+取消异常）、Json
 src/main/resources/craftport/web.html   面板单文件 SPA（约 1.1k 行，内嵌 JS）
 ```
 
 关键分层约束：**领域逻辑一律放 `craftport.minecraft`，`CliMain`/`WebPanel` 只做展示与参数解析**。新增 CLI 命令 = `CliMain.dispatch` 加 case + `printHelp` 补一行；新增面板 API = `WebPanel.handle` 加路由 + 前端 `web.html` 对接。
+
+### 登录
+
+- 离线：`login <name>` 写缓存；UUID 算法与 PCL2 的 `McLoginLegacyUuid` 兼容（同一用户名在不同启动器下 UUID 一致）。
+- 微软：`login --microsoft` 走 Device Code 流（需 `CRAFTPORT_MS_CLIENT_ID`）；成功后的刷新令牌存 `config.json`。
+- `launch` 的默认策略：能刷新缓存的微软会话就用微软，否则退化到离线；`--offline` / `--microsoft` 可强制。
+- 用户可见的登录错误信息用英文（与 CLI 输出约定一致）；内部日志保持中文。
 
 ### 四条核心数据流
 

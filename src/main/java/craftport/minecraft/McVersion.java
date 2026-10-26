@@ -29,7 +29,7 @@ public final class McVersion {
     public final Path jsonFile;
     public JsonObject info;            // 合并 inheritsFrom 后的完整 json
     public String releaseTime = "";
-    public String mcVersion = "";      // 对应 clientVersion / id 识别结果
+    public String mcVersion = "";      // clientVersion / id 识别结果
     public String infoSource = "";     // 版本信息识别来源
     public boolean isOld;              // 远古版本（releaseTime < 2013）
     public boolean isSnapshot;         // 快照/非正式版
@@ -82,7 +82,7 @@ public final class McVersion {
     }
 
     /**
-     * 递归合并 inheritsFrom（对应 JsonObject 的合并逻辑）：
+     * 递归合并 inheritsFrom：
      *  防自引用与过深嵌套；libraries：子版本在前、父版本在后（classpath 顺序敏感）；
      *  其余对象/数组：子版本优先。
      */
@@ -137,7 +137,7 @@ public final class McVersion {
         return merged;
     }
 
-    /** 版本识别（对应 ModMinecraft 的识别优先级链，此处实现主要几级）。 */
+    /** 版本识别（按识别优先级链实现主要几级）。 */
     private void identify() {
         // 1. clientVersion / javaVersion.majorVersion 之外的 MC 版本
         mcVersion = Json.str(info, "clientVersion", "");
@@ -183,7 +183,7 @@ public final class McVersion {
         }
     }
 
-    /** 沿 inheritsFrom 链取最底层的 assetIndex（对应 DlClientAssetIndexGet）。 */
+    /** 沿 inheritsFrom 链取最底层的 assetIndex。 */
     public JsonObject assetIndex() {
         return info.has("assetIndex") && info.get("assetIndex").isJsonObject()
                 ? info.getAsJsonObject("assetIndex") : null;
@@ -294,12 +294,12 @@ public final class McVersion {
         return "";
     }
 
-    /** 版本隔离后的游戏目录（对应 PathIndie）。 */
+    /** 版本隔离后的游戏目录。 */
     public Path gameDirectory(Path mcRoot, boolean isolation) {
         return isolation ? folder : mcRoot;
     }
 
-    /** natives 解压目录：versions/{名}/{名}-natives（对应 McLaunchNatives）。 */
+    /** natives 解压目录：versions/{名}/{名}-natives。 */
     public Path nativesDir() {
         return folder.resolve(name + "-natives");
     }
@@ -315,7 +315,7 @@ public final class McVersion {
     public String mcVersion() { return mcVersion; }
     public Path folder() { return folder; }
 
-    /** 排序：正式版在前，版本号新在前（对应列表排序逻辑的简化版）。 */
+    /** 排序：正式版在前，版本号新在前。 */
     public static void sort(List<McVersion> versions) {
         versions.sort((a, b) -> {
             if (a.isOld != b.isOld) return a.isOld ? 1 : -1;
