@@ -19,12 +19,17 @@ import craftport.minecraft.ModpackInstaller;
 import craftport.minecraft.Modrinth;
 import craftport.minecraft.ModLoader;
 import craftport.minecraft.ServerDeployer;
+import craftport.minecraft.ServerManager;
+import org.jline.reader.EndOfFileException;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.UserInterruptException;
+import org.jline.terminal.Terminal;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
 /**
  * CraftPort — command line interface (English only).
@@ -33,8 +38,6 @@ import java.util.Scanner;
  * Run without arguments for the interactive menu.
  */
 public final class CliMain {
-
-    private static final Scanner IN = new Scanner(System.in);
 
     // ANSI 颜色（Linux 终端；NO_COLOR 环境变量或非交互时禁用）
     private static final boolean COLOR = Os.IS_LINUX
@@ -76,7 +79,8 @@ public final class CliMain {
 
     // ==================== Command dispatch ====================
 
-    private static int dispatch(String[] args) {
+    // 包内可见：REPL 复用同一条派发路径（一次性命令行为不变）
+    static int dispatch(String[] args) {
         String cmd = args[0];
         String[] rest = new String[args.length - 1];
         System.arraycopy(args, 1, rest, 0, rest.length);
@@ -146,6 +150,10 @@ public final class CliMain {
                   server start [dir] [--memory MB] [--java path]
                                                 Start the server (interactive console;
                                                 default dir = the only deployed server)
+                  server console [dir] [--memory MB] [--java path]
+                                                Attach to the managed console: streams
+                                                logs and sends commands ('detach' or
+                                                Ctrl+D leaves the server running)
                   server web [--port 8765] [--host 127.0.0.1]
                                                 Start the web management panel (localhost)
                   server delete --dir <dir>      Delete a deployed server (cannot be undone)
@@ -197,12 +205,48 @@ public final class CliMain {
     }
 
     private static void cmdInstall(String[] args) throws Exception {
-        if (args.length < 1) throw new IllegalArgumentException("Usage: install <mcVersion>");
+        if (args.length < 1) {
+            if (CliUi.interactive()) {   // P1：REPL 里拉取 releases 并支持输入前缀过滤
+                String id = pickReleaseId();
+                if (id == null) { System.out.println("Cancelled."); return; }
+                args = new String[]{id};
+            } else {   // 红线：一次性命令保持原报错
+                throw new IllegalArgumentException("Usage: install <mcVersion>");
+            }
+        }
         Path root = McFolder.selectedRoot();
         System.out.println("Installing " + args[0] + " into " + root + " ...");
         McFolder.ensureProfile(root);
         InstallService.install(args[0], root);
         System.out.println("Installed " + args[0] + ". Libraries and assets are completed automatically on first launch.");
+    }
+
+    /** P1（仅交互模式调用）：已装版本选择列表；取消/无版本返回 null。 */
+    private static String pickInstalledVersion(String title) {
+        List<McVersion> installed = McFolder.scanVersions(McFolder.selectedRoot());
+        if (installed.isEmpty()) {
+            System.out.println("No versions installed in " + McFolder.selectedRoot());
+            return null;
+        }
+        int i = CliUi.select(title, installed.stream().map(McVersion::name).toList());
+        return i < 0 ? null : installed.get(i).name();
+    }
+
+    /** P1（仅交互模式调用）：拉取 releases 并弹出可输入前缀过滤的版本列表；取消返回 null。 */
+    private static String pickReleaseId() {
+        try {
+            System.out.println("Fetching version manifest...");
+            List<InstallService.Release> releases = InstallService.fetchManifest().stream()
+                    .filter(InstallService.Release::isRelease).toList();
+            if (releases.isEmpty()) { System.out.println("No releases available."); return null; }
+            int i = CliUi.selectFiltered("Install which release? (" + releases.size()
+                            + " releases - type a version prefix to filter)",
+                    releases.stream().map(InstallService.Release::id).toList());
+            return i < 0 ? null : releases.get(i).id();
+        } catch (Exception e) {
+            System.out.println(red("Manifest fetch failed: " + e.getMessage()));
+            return null;
+        }
     }
 
     private static void cmdFabric(String[] args) throws Exception {
@@ -264,7 +308,15 @@ public final class CliMain {
             List<Modrinth.ModInfo> mods = Modrinth.search(query, type);
             if (mods.isEmpty()) { System.out.println("No results found."); return 1; }
             for (int i = 0; i < Math.min(10, mods.size()); i++) System.out.println("  [" + i + "] " + mods.get(i));
-            Modrinth.ModInfo mod = mods.get(Math.min(pick, mods.size() - 1));
+            Modrinth.ModInfo mod;
+            if ("install".equals(action) && CliUi.interactive() && !flags.containsKey("pick")) {
+                // P1：交互模式弹列表替代 --pick N（--pick 保留给脚本）
+                int i = CliUi.select("Pick a result", mods.stream().limit(10).map(String::valueOf).toList());
+                if (i < 0) { System.out.println("Cancelled."); return 1; }
+                mod = mods.get(i);
+            } else {
+                mod = mods.get(Math.min(pick, mods.size() - 1));
+            }
             System.out.println("Fetching files for " + mod.title() + " ...");
             List<Modrinth.FileInfo> files = Modrinth.files(mod.projectId(), mc, loader);
             if (files.isEmpty()) {
@@ -273,7 +325,14 @@ public final class CliMain {
             }
             for (int i = 0; i < Math.min(10, files.size()); i++) System.out.println("  [" + i + "] " + files.get(i));
             if ("search".equals(action)) return 0;
-            Modrinth.FileInfo file = files.get(Math.min(fileIdx, files.size() - 1));
+            Modrinth.FileInfo file;
+            if (CliUi.interactive() && !flags.containsKey("file")) {
+                int i = CliUi.select("Pick a file", files.stream().limit(10).map(String::valueOf).toList());
+                if (i < 0) { System.out.println("Cancelled."); return 1; }
+                file = files.get(i);
+            } else {
+                file = files.get(Math.min(fileIdx, files.size() - 1));
+            }
             Path destDir = resolveContentDir(flags, mc, type);
             System.out.println("Downloading " + file.name() + " ...");
             Modrinth.download(file, destDir.resolve(file.name()));
@@ -289,8 +348,16 @@ public final class CliMain {
             System.out.println("(install with: mods install \"" + query + "\" --pick N)");
             return 0;
         }
-        if (pick >= Math.min(10, mods.size())) throw new IllegalArgumentException("Pick index out of range: " + pick);
-        CurseForge.ModInfo mod = mods.get(pick);
+        CurseForge.ModInfo mod;
+        if (CliUi.interactive() && !flags.containsKey("pick")) {
+            // P1：交互模式弹列表替代 --pick N（--pick 保留给脚本）
+            int i = CliUi.select("Pick a result", mods.stream().limit(10).map(String::valueOf).toList());
+            if (i < 0) { System.out.println("Cancelled."); return 1; }
+            mod = mods.get(i);
+        } else {
+            if (pick >= Math.min(10, mods.size())) throw new IllegalArgumentException("Pick index out of range: " + pick);
+            mod = mods.get(pick);
+        }
 
         System.out.println("Fetching files for " + mod.name() + (mc == null ? "" : " (compatible with " + mc + ")") + " ...");
         List<CurseForge.FileInfo> files = CurseForge.files(mod.id(), mc);
@@ -299,8 +366,15 @@ public final class CliMain {
             return 1;
         }
         for (int i = 0; i < Math.min(10, files.size()); i++) System.out.println("  [" + i + "] " + files.get(i));
-        if (fileIdx >= Math.min(10, files.size())) throw new IllegalArgumentException("File index out of range: " + fileIdx);
-        CurseForge.FileInfo file = files.get(fileIdx);
+        CurseForge.FileInfo file;
+        if (CliUi.interactive() && !flags.containsKey("file")) {
+            int i = CliUi.select("Pick a file", files.stream().limit(10).map(String::valueOf).toList());
+            if (i < 0) { System.out.println("Cancelled."); return 1; }
+            file = files.get(i);
+        } else {
+            if (fileIdx >= Math.min(10, files.size())) throw new IllegalArgumentException("File index out of range: " + fileIdx);
+            file = files.get(fileIdx);
+        }
 
         Path destDir = resolveContentDir(flags, mc, type);
         Files.createDirectories(destDir);
@@ -385,6 +459,10 @@ public final class CliMain {
         if ("deploy".equals(action)) {
             // 一键服务端部署：从整合包自动推断版本与加载器，部署 + 装入全部内容
             boolean acceptEula = flags.containsKey("accept-eula");
+            if (!acceptEula && CliUi.interactive()
+                    && CliUi.confirm("Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)?")) {
+                acceptEula = true;   // P1：交互模式统一走 LineReader 确认
+            }
             if (!acceptEula) {
                 System.out.println(yellow("WARNING: EULA not accepted - add --accept-eula or the server will refuse to start."));
             }
@@ -426,7 +504,15 @@ public final class CliMain {
     }
 
     private static int cmdLaunch(String[] args) throws Exception {
-        if (args.length < 1) throw new IllegalArgumentException("Usage: launch <version> [--username u] [--server host[:port]] [--offline|--microsoft] [--no-isolation] [--no-wait]");
+        if (args.length < 1) {
+            if (CliUi.interactive()) {   // P1：REPL 里缺版本参数 → 已装版本列表选择
+                String v = pickInstalledVersion("Launch which version?");
+                if (v == null) { System.out.println("Cancelled."); return 1; }
+                args = new String[]{v};
+            } else {   // 红线：一次性命令保持原报错
+                throw new IllegalArgumentException("Usage: launch <version> [--username u] [--server host[:port]] [--offline|--microsoft] [--no-isolation] [--no-wait]");
+            }
+        }
         Map<String, String> flags = parseFlags(args, 1);
         String versionName = args[0];
 
@@ -714,7 +800,7 @@ public final class CliMain {
     // ==================== Server deployment ====================
 
     private static int cmdServer(String[] args) throws Exception {
-        if (args.length < 1) throw new IllegalArgumentException("Usage: server deploy|start|list ...");
+        if (args.length < 1) throw new IllegalArgumentException("Usage: server deploy|start|console|list|delete|web|service ...");
         // deploy 有一个位置参数（mcVersion）需要跳过，start/list 没有
         Map<String, String> flags = args.length > 1 ? parseFlags(args, "deploy".equals(args[0]) ? 2 : 1) : Map.of();
         switch (args[0]) {
@@ -739,6 +825,10 @@ public final class CliMain {
                 if (ServerDeployer.portBusy(ServerDeployer.serverPort(dir))) {
                     throw new IllegalArgumentException("Port in use - stop the server first");
                 }
+                if (CliUi.interactive() && !CliUi.confirm("Delete " + dir + "? This cannot be undone")) {
+                    System.out.println("Cancelled.");   // P1：交互模式统一走 LineReader 确认
+                    return 0;
+                }
                 ServerDeployer.deleteServer(dir);
                 System.out.println("Deleted: " + dir);
             }
@@ -760,6 +850,10 @@ public final class CliMain {
                         ? Path.of(flags.get("dir"))
                         : ServerDeployer.defaultDir(mc, kind);
                 boolean acceptEula = flags.containsKey("accept-eula");
+                if (!acceptEula && CliUi.interactive()
+                        && CliUi.confirm("Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)?")) {
+                    acceptEula = true;   // P1：交互模式统一走 LineReader 确认
+                }
                 warnIfRoot();
                 System.out.println("Deploying " + kind.name().toLowerCase() + " server " + mc + " into " + dir + " ...");
                 ServerDeployer.deploy(kind, mc, dir, acceptEula, !flags.containsKey("no-auto-java"),
@@ -798,12 +892,21 @@ public final class CliMain {
                 System.out.println("Server exited with code " + code + ".");
                 return code == 0 ? 0 : 1;
             }
+            case "console" -> {
+                // P2：server console [dir] —— 托管启动 + 日志流 + 控制台命令
+                String pos = args.length > 1 && !args[1].startsWith("--") ? args[1] : null;
+                Path dir = pos != null ? Path.of(pos) : resolveServerDir(flags.get("dir"));
+                return cmdServerConsole(dir, flags);
+            }
             default -> throw new IllegalArgumentException("Unknown server subcommand: " + args[0]);
         }
         return 0;
     }
 
-    /** 未指定 --dir 时的服务端目录解析：唯一部署目录直接用，多个/零个则报错并列出。 */
+    /**
+     * 未指定 --dir 时的服务端目录解析：唯一部署目录直接用；
+     * 多个时交互上下文弹列表选择（P1），一次性命令保持原报错（红线）。
+     */
     private static Path resolveServerDir(String dirFlag) {
         if (dirFlag != null && !dirFlag.isBlank()) return Path.of(dirFlag);
         List<Path> servers = ServerDeployer.listServers();
@@ -811,9 +914,117 @@ public final class CliMain {
         if (servers.isEmpty()) {
             throw new IllegalArgumentException("No deployed servers. Run: server deploy <mcVersion>");
         }
+        if (CliUi.interactive()) {
+            int i = CliUi.select("Select a server", servers.stream().map(Path::toString).toList());
+            if (i >= 0) return servers.get(i);
+            throw new IllegalArgumentException("Cancelled.");
+        }
         StringBuilder sb = new StringBuilder("Multiple servers deployed; specify one with --dir:");
         for (Path p : servers) sb.append("\n  ").append(p);
         throw new IllegalArgumentException(sb.toString());
+    }
+
+    /**
+     * P2：server console —— 附加到托管实例的日志流 + 控制台。
+     * 无托管实例时经 ServerManager 托管启动（端口预检复用）；端口被外部进程占用时
+     * 提示不可 attach 并引导 server start。'detach'/Ctrl+D 退出会话但不杀进程；
+     * 进程退出时打印 exitCode。
+     */
+    private static int cmdServerConsole(Path dir, Map<String, String> flags) throws Exception {
+        if (!Files.isDirectory(dir)) throw new IllegalArgumentException("Not a server directory: " + dir);
+        ServerManager.Instance inst = ServerManager.get(dir);
+        boolean attached = inst != null && inst.process.isAlive();
+        if (!attached) {
+            int port = ServerDeployer.serverPort(dir);
+            if (ServerDeployer.portBusy(port)) {
+                System.out.println(red("Port " + port + " is in use by an instance CraftPort cannot attach to."));
+                System.out.println("Stop that process first, or use 'server start' for a plain foreground console.");
+                return 1;
+            }
+            warnIfRoot();
+            String mc = ServerDeployer.mcFromDirName(dir);
+            String javaPath = flags.containsKey("java")
+                    ? flags.get("java")
+                    : ServerDeployer.resolveJava(mc, true).executable().toString();
+            int memory = Integer.parseInt(flags.getOrDefault("memory", "4096"));
+            System.out.println("Starting managed server in " + dir + " (Java " + javaPath + ", -Xmx" + memory + "M) ...");
+            inst = ServerManager.start(dir, javaPath, memory);
+            System.out.println(green("Server started (PID " + inst.process.pid() + ").")
+                    + " 'detach' or Ctrl+D returns to the prompt without stopping it.");
+        } else {
+            System.out.println("Attached to managed instance (PID " + inst.process.pid() + ").");
+        }
+
+        // REPL 里复用其终端/阅读器（日志经 printAbove 重绘在输入行上方）；
+        // 一次性命令模式现建（真实终端可用，哑终端自动退化为普通行读）
+        Terminal terminal;
+        LineReader reader;
+        if (CliUi.interactive()) {
+            terminal = CliUi.terminal();
+            reader = CliUi.lineReader();
+        } else {
+            terminal = Repl.createTerminal();
+            reader = LineReaderBuilder.builder().terminal(terminal).build();
+        }
+        boolean dumb = Repl.isDumb(terminal);
+
+        final ServerManager.Instance managed = inst;   // lambda 捕获需实际最终变量
+        final int[] since = {attached ? Math.max(0, inst.logSize() - 10) : 0};
+        final boolean[] streaming = {true};
+        Thread poller = new Thread(() -> {
+            while (streaming[0]) {
+                for (String l : managed.tail(since[0])) consoleLine(reader, dumb, l);
+                since[0] = managed.logSize();
+                if (!managed.process.isAlive()) {
+                    consoleLine(reader, dumb, "Server process has exited - press Ctrl+D (or type 'detach') to leave.");
+                    return;
+                }
+                try {
+                    Thread.sleep(300);
+                } catch (InterruptedException e) {
+                    return;
+                }
+            }
+        }, "craftport-console-log");
+        poller.setDaemon(true);
+        poller.start();
+
+        while (true) {
+            String line;
+            try {
+                line = reader.readLine("console> ");
+            } catch (EndOfFileException e) {          // Ctrl+D → detach，不杀进程
+                line = null;
+            } catch (UserInterruptException e) {      // Ctrl+C → 同样视为 detach
+                line = null;
+            }
+            if (line == null || "detach".equalsIgnoreCase(line.trim())) break;
+            String cmd = line.trim();
+            if (cmd.isEmpty()) continue;
+            try {
+                ServerManager.sendCommand(dir, cmd);
+            } catch (java.io.IOException e) {
+                System.out.println(red("Command not sent: " + e.getMessage()));
+                break;
+            }
+        }
+        streaming[0] = false;
+        poller.interrupt();
+
+        if (managed.process.isAlive()) {
+            System.out.println("Detached - the server keeps running (PID " + managed.process.pid() + ").");
+            System.out.println("Re-attach with 'server console'; type 'stop' in the console to shut it down.");
+            return 0;
+        }
+        int code = managed.process.waitFor();   // 进程已退出，立即返回
+        System.out.println("Server exited with code " + code + ".");
+        return code == 0 ? 0 : 1;
+    }
+
+    /** console 日志输出：真实终端走 printAbove（重绘在输入行上方），哑终端直接 println。 */
+    private static void consoleLine(LineReader reader, boolean dumb, String line) {
+        if (dumb) System.out.println(line);
+        else reader.printAbove(line);
     }
 
     /** root 运行警告（Linux 服务端不应使用 root 账户）。 */
@@ -873,9 +1084,21 @@ public final class CliMain {
         return 0;
     }
 
-    // ==================== Interactive menu ====================
+    // ==================== Interactive entry (REPL / legacy menu) ====================
 
-    private static int interactive() {
+    /**
+     * 无参数入口：真实 TTY → JLine REPL（P0）；哑终端（管道/脚本/CI）→ 保留原数字菜单
+     * （红线：非交互环境不得挂起，菜单遇到 EOF 立即退出）。
+     */
+    private static int interactive() throws Exception {
+        Terminal terminal = Repl.createTerminal();
+        if (Repl.isDumb(terminal)) return legacyMenu(terminal);
+        return new Repl(terminal).run();
+    }
+
+    /** 哑终端退路：原 Scanner 数字菜单迁移到 LineReader（dumb 模式），选项与行为不变。 */
+    private static int legacyMenu(Terminal terminal) {
+        LineReader lr = LineReaderBuilder.builder().terminal(terminal).build();
         System.out.println("CraftPort — CLI (type a number)");
         while (true) {
             System.out.println("""
@@ -891,70 +1114,61 @@ public final class CliMain {
                     9) Deploy a server (one-click)
                    10) Start a deployed server
                     0) Exit""".stripIndent());
-            System.out.print("> ");
-            String line = IN.nextLine().trim();
+            String line = menuInput(lr, "> ");   // EOF（管道）→ 立即退出，不挂起
+            if (line == null) { System.out.println("Bye!"); return 0; }
             try {
                 switch (line) {
                     case "1" -> cmdVersions();
                     case "2" -> {
                         cmdReleases(new String[]{"10"});
-                        System.out.print("Version id to install (empty to cancel): ");
-                        String id = IN.nextLine().trim();
-                        if (!id.isEmpty()) cmdInstall(new String[]{id});
+                        String id = menuInput(lr, "Version id to install (empty to cancel): ");
+                        if (id != null && !id.isEmpty()) cmdInstall(new String[]{id});
                     }
                     case "3", "4" -> {
                         List<McVersion> installed = McFolder.scanVersions(McFolder.selectedRoot());
                         if (installed.isEmpty()) { System.out.println("Install a vanilla version first."); break; }
                         for (int i = 0; i < installed.size(); i++) System.out.printf("  [%d] %s%n", i, installed.get(i).name());
-                        System.out.print("Base version index: ");
-                        int idx = Integer.parseInt(IN.nextLine().trim());
+                        int idx = Integer.parseInt(menuInput(lr, "Base version index: "));
                         McVersion base = installed.get(idx);
                         if ("3".equals(line)) cmdFabric(new String[]{base.name(), "latest"});
                         else cmdForge(new String[]{base.name(), "latest"});
                     }
                     case "5" -> {
-                        System.out.print("Mod name to search: ");
-                        String q = IN.nextLine().trim();
-                        if (q.isEmpty()) break;
-                        System.out.print("Minecraft version filter (empty = any): ");
-                        String mc = IN.nextLine().trim();
+                        String q = menuInput(lr, "Mod name to search: ");
+                        if (q == null || q.isEmpty()) break;
+                        String mc = menuInput(lr, "Minecraft version filter (empty = any): ");
                         List<String> a = new java.util.ArrayList<>(List.of("mods", "install", q));
-                        if (!mc.isEmpty()) a.addAll(List.of("--mc", mc));
+                        if (mc != null && !mc.isEmpty()) a.addAll(List.of("--mc", mc));
                         return cmdMods(a.toArray(new String[0]));
                     }
                     case "6" -> {
                         List<McVersion> installed = McFolder.scanVersions(McFolder.selectedRoot());
                         if (installed.isEmpty()) { System.out.println("No versions to launch."); break; }
                         for (int i = 0; i < installed.size(); i++) System.out.printf("  [%d] %s%n", i, installed.get(i).name());
-                        System.out.print("Version index: ");
-                        int idx = Integer.parseInt(IN.nextLine().trim());
-                        System.out.print("Username [" + Config.cacheUsername + "]: ");
-                        String u = IN.nextLine().trim();
+                        int idx = Integer.parseInt(menuInput(lr, "Version index: "));
+                        String u = menuInput(lr, "Username [" + Config.cacheUsername + "]: ");
                         List<String> a = new java.util.ArrayList<>(List.of("launch", installed.get(idx).name()));
-                        if (!u.isEmpty()) a.addAll(List.of("--username", u));
+                        if (u != null && !u.isEmpty()) a.addAll(List.of("--username", u));
                         return cmdLaunch(a.toArray(new String[0]));
                     }
                     case "7" -> {
-                        System.out.print("Game directory [" + McFolder.selectedRoot() + "]: ");
-                        String d = IN.nextLine().trim();
-                        if (!d.isEmpty()) cmdDir(new String[]{d});
-                        else cmdDir(new String[0]);
+                        String d = menuInput(lr, "Game directory [" + McFolder.selectedRoot() + "]: ");
+                        if (d == null || d.isEmpty()) cmdDir(new String[0]);
+                        else cmdDir(new String[]{d});
                     }
                     case "8" -> cmdRuntimes();
                     case "9" -> {
-                        System.out.print("Minecraft version (e.g. 1.20.6): ");
-                        String mc = IN.nextLine().trim();
-                        if (mc.isEmpty()) break;
-                        System.out.print("Type [vanilla/fabric/forge/paper, default vanilla]: ");
-                        String type = IN.nextLine().trim();
-                        if (type.isEmpty()) type = "vanilla";
-                        System.out.print("Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ");
-                        boolean eula = IN.nextLine().trim().equalsIgnoreCase("y");
+                        String mc = menuInput(lr, "Minecraft version (e.g. 1.20.6): ");
+                        if (mc == null || mc.isEmpty()) break;
+                        String type = menuInput(lr, "Type [vanilla/fabric/forge/paper, default vanilla]: ");
+                        if (type == null || type.isEmpty()) type = "vanilla";
+                        String e = menuInput(lr, "Accept the Minecraft EULA (https://aka.ms/MinecraftEULA)? [y/N]: ");
+                        boolean eula = "y".equalsIgnoreCase(e);
                         List<String> a = new java.util.ArrayList<>(List.of("deploy", mc, "--type", type));
                         if (eula) a.add("--accept-eula");
                         cmdServer(a.toArray(new String[0]));
-                        System.out.print("Start the server now? [y/N]: ");
-                        if (IN.nextLine().trim().equalsIgnoreCase("y")) {
+                        String now = menuInput(lr, "Start the server now? [y/N]: ");
+                        if ("y".equalsIgnoreCase(now)) {
                             ServerDeployer.Kind k = ServerDeployer.Kind.valueOf(type.toUpperCase());
                             cmdServer(new String[]{"start", "--dir", ServerDeployer.defaultDir(mc, k).toString()});
                         }
@@ -963,12 +1177,10 @@ public final class CliMain {
                         List<Path> servers = ServerDeployer.listServers();
                         if (servers.isEmpty()) { System.out.println("No deployed servers."); break; }
                         for (int i = 0; i < servers.size(); i++) System.out.printf("  [%d] %s%n", i, servers.get(i));
-                        System.out.print("Server index: ");
-                        int idx = Integer.parseInt(IN.nextLine().trim());
-                        System.out.print("Memory in MB [4096]: ");
-                        String mem = IN.nextLine().trim();
+                        int idx = Integer.parseInt(menuInput(lr, "Server index: "));
+                        String mem = menuInput(lr, "Memory in MB [4096]: ");
                         List<String> a = new java.util.ArrayList<>(List.of("start", "--dir", servers.get(idx).toString()));
-                        if (!mem.isEmpty()) a.addAll(List.of("--memory", mem));
+                        if (mem != null && !mem.isEmpty()) a.addAll(List.of("--memory", mem));
                         return cmdServer(a.toArray(new String[0]));
                     }
                     case "0" -> { System.out.println("Bye!"); return 0; }
@@ -980,9 +1192,20 @@ public final class CliMain {
         }
     }
 
+    /** 菜单读行：EOF（管道）与 Ctrl+C 统一返回 null。 */
+    private static String menuInput(LineReader lr, String prompt) {
+        try {
+            String s = lr.readLine(prompt);
+            return s == null ? null : s.trim();
+        } catch (EndOfFileException | UserInterruptException e) {
+            return null;
+        }
+    }
+
     // ==================== Helpers ====================
 
-    private static Map<String, String> parseFlags(String[] args, int from) {
+    // 包内可见：Repl 复用同一解析（红线：--key value / --key 语法不动）
+    static Map<String, String> parseFlags(String[] args, int from) {
         Map<String, String> flags = new java.util.LinkedHashMap<>();
         for (int i = from; i < args.length; i++) {
             if (args[i].startsWith("--")) {

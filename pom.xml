@@ -25,6 +25,14 @@
             <artifactId>gson</artifactId>
             <version>${gson.version}</version>
         </dependency>
+        <!-- 交互 REPL（JLine 3.x 维护线）：纯 Java、包名 org.jline.* 无冲突；
+             用 ServiceLoader 注册终端提供者，shade 的 ServicesResourceTransformer 会合并
+             META-INF/services，无需改 shade 配置。Java 21 下 FFM 不可用，自动落 JNI/exec/dumb。 -->
+        <dependency>
+            <groupId>org.jline</groupId>
+            <artifactId>jline</artifactId>
+            <version>3.30.17</version>
+        </dependency>
     </dependencies>
 
     <build>
